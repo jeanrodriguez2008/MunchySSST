@@ -300,6 +300,11 @@ def register_page(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
+    
+    # Permitir acceso si es Webmaster o Coordinador
+    if user.get("role") not in ["Webmaster", "Coordinador"]:
+        return RedirectResponse(url="/")
+        
     return templates.TemplateResponse(request=request, name="register_worker.html", context={"current_user": user})
 
 @app.get("/users")
