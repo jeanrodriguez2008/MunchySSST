@@ -97,19 +97,21 @@
                 usuariosFiltrados.forEach(u => {
                     const esWebmaster = u.role === 'Webmaster';
 
-                    // Opciones desplegables según el rol en sesión
+                    // Opciones desplegables según el rol en sesión (INCLUYENDO ROL CONSULTOR)
                     let opcionesSelectHtml = '';
                     if (currentRole === 'Webmaster') {
                         opcionesSelectHtml = `
                             <option value="Webmaster" ${u.role === 'Webmaster' ? 'selected' : ''}>Webmaster</option>
                             <option value="Coordinador" ${u.role === 'Coordinador' ? 'selected' : ''}>Coordinador</option>
                             <option value="Analista" ${u.role === 'Analista' ? 'selected' : ''}>Analista</option>
+                            <option value="Consultor" ${u.role === 'Consultor' ? 'selected' : ''}>Consultor</option>
                         `;
                     } else {
-                        // El Coordinador SOLO ve y asigna los roles de Coordinador y Analista
+                        // El Coordinador ve y asigna los roles de Coordinador, Analista y Consultor
                         opcionesSelectHtml = `
                             <option value="Coordinador" ${u.role === 'Coordinador' ? 'selected' : ''}>Coordinador</option>
                             <option value="Analista" ${u.role === 'Analista' ? 'selected' : ''}>Analista</option>
+                            <option value="Consultor" ${u.role === 'Consultor' ? 'selected' : ''}>Consultor</option>
                         `;
                     }
 

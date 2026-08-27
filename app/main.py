@@ -3,12 +3,12 @@ import os
 import json
 import shutil
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import Counter
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile, Response, Depends
+from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile, Response, Depends, status
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -21,7 +21,6 @@ import uvicorn
 
 app = FastAPI(title="MunchySSST Local")
 
-# --- SOLUCIÓN PARA RENDER: RUTAS ABSOLUTAS BASADAS EN LA UBICACIÓN DEL ARCHIVO ---
 BASE_DIR = Path(__file__).resolve().parent
 
 os.makedirs(BASE_DIR / "static/uploads", exist_ok=True)
@@ -30,7 +29,6 @@ os.makedirs(BASE_DIR / "static/exports", exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-# ----------------------------------------------------------------------------------
 
 class EventSchema(BaseModel):
     fecha: Optional[str] = ""
@@ -38,6 +36,23 @@ class EventSchema(BaseModel):
     descripcion: str
     rest_days: Optional[int] = 0
     is_reposo: Optional[bool] = False
+
+class VacationSchema(BaseModel):
+    fecha_inicio: str
+    fecha_reintegro: str
+    dias_vacaciones: Optional[int] = 0
+    observacion: Optional[str] = ""
+
+class RiskSchema(BaseModel):
+    fecha: str
+    puesto: str
+    descripcion_riesgo: str
+
+class MedicalExamSchema(BaseModel):
+    fecha: str
+    tipo_examen: str  # Prevacacional, Postvacacional, Rutinario Anual
+    resultado: Optional[str] = "Apto"
+    observaciones: Optional[str] = ""
 
 MOCK_USERS: Dict[str, Any] = {
     "webmaster": {
@@ -49,7 +64,6 @@ MOCK_USERS: Dict[str, Any] = {
     }
 }
 
-# Diccionario inicializado vacío para evitar que reaparezcan registros por defecto
 MOCK_WORKERS: Dict[str, Any] = {}
 
 def get_current_user(request: Request):
@@ -85,7 +99,119 @@ def calcular_dias_sin_reposo(worker: dict) -> int:
             
     return 0
 
-# --- AUTENTICACIÓN Y VISTAS ---
+def evaluar_estatus_trabajador(worker: dict) -> str:
+    if worker.get("exit_date"):
+        return "INACTIVO"
+    if worker.get("is_on_leave"):
+        return "EN REPOSO"
+    
+    hoy = datetime.now().date()
+    for vac in worker.get("vacations", []):
+        try:
+            inicio = datetime.strptime(vac["fecha_inicio"], "%Y-%m-%d").date()
+            reintegro = datetime.strptime(vac["fecha_reintegro"], "%Y-%m-%d").date()
+            if inicio <= hoy < reintegro:
+                return "DE VACACIONES"
+        except ValueError:
+            pass
+            
+    return "ACTIVO"
+
+def obtener_alertas_contrato() -> List[str]:
+    alertas = []
+    hoy = datetime.now().date()
+    for w in MOCK_WORKERS.values():
+        if w.get("employment_type") == "Contratado" and w.get("contract_end_date"):
+            try:
+                dt_fin = datetime.strptime(w["contract_end_date"], "%Y-%m-%d").date()
+                dias_restantes = (dt_fin - hoy).days
+                if 0 <= dias_restantes <= 10:
+                    nombre_completo = f"{w.get('first_name', '')} {w.get('last_name', '')}".strip()
+                    dept = w.get("department", "N/A")
+                    if dias_restantes == 0:
+                        msg = f"El Trabajador {nombre_completo}, perteneciente al Departamento {dept}, vence su contrato HOY."
+                    else:
+                        msg = f"El Trabajador {nombre_completo}, perteneciente al Departamento {dept}, le quedan {dias_restantes} días para vencer el contrato."
+                    alertas.append(msg)
+            except ValueError:
+                pass
+    return alertas
+
+def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
+    alertas_examenes = []
+    hoy = datetime.now().date()
+    nombre = f"{worker.get('first_name', '')} {worker.get('last_name', '')}".strip()
+    dept = worker.get("department", "N/A")
+    examenes_realizados = worker.get("medical_exams", [])
+
+    # 1. Alertas Prevacacionales y Postvacacionales
+    for vac in worker.get("vacations", []):
+        try:
+            f_inicio = datetime.strptime(vac["fecha_inicio"], "%Y-%m-%d").date()
+            f_reintegro = datetime.strptime(vac["fecha_reintegro"], "%Y-%m-%d").date()
+
+            # Prevacacional: Alerta entre 15 y 1 días antes de salir de vacaciones
+            dias_para_vac = (f_inicio - hoy).days
+            if 0 <= dias_para_vac <= 15:
+                # Verificar si ya tiene examen prevacacional reciente
+                tiene_examen = any(
+                    e.get("tipo_examen") == "Prevacacional" and
+                    abs((datetime.strptime(e["fecha"], "%Y-%m-%d").date() - f_inicio).days) <= 30
+                    for e in examenes_realizados if e.get("fecha")
+                )
+                if not tiene_examen:
+                    alertas_examenes.append({
+                        "tipo": "Prevacacional",
+                        "mensaje": f"El trabajador {nombre} ({dept}) inicia vacaciones el {f_inicio}. Requiere Examen Prevacacional urgente."
+                    })
+
+            # Postvacacional: Alerta al momento o hasta 10 días después del reintegro
+            dias_post_vac = (hoy - f_reintegro).days
+            if -2 <= dias_post_vac <= 10:
+                tiene_examen_post = any(
+                    e.get("tipo_examen") == "Postvacacional" and
+                    abs((datetime.strptime(e["fecha"], "%Y-%m-%d").date() - f_reintegro).days) <= 15
+                    for e in examenes_realizados if e.get("fecha")
+                )
+                if not tiene_examen_post:
+                    alertas_examenes.append({
+                        "tipo": "Postvacacional",
+                        "mensaje": f"El trabajador {nombre} ({dept}) reingresó de vacaciones el {f_reintegro}. Pendiente Examen Postvacacional."
+                    })
+        except ValueError:
+            pass
+
+    # 2. Alerta Rutinario Anual (Cada 365 días desde ingreso o desde el último examen rutinario)
+    fechas_rutinarios = []
+    for e in examenes_realizados:
+        if e.get("tipo_examen") == "Rutinario Anual" and e.get("fecha"):
+            try:
+                fechas_rutinarios.append(datetime.strptime(e["fecha"], "%Y-%m-%d").date())
+            except ValueError:
+                pass
+    
+    fecha_referencia = max(fechas_rutinarios) if fechas_rutinarios else (
+        datetime.strptime(worker["hire_date"], "%Y-%m-%d").date() if worker.get("hire_date") else None
+    )
+
+    if fecha_referencia:
+        proximo_rutinario = fecha_referencia + timedelta(days=365)
+        dias_para_rutinario = (proximo_rutinario - hoy).days
+        if dias_para_rutinario <= 30:
+            alertas_examenes.append({
+                "tipo": "Rutinario Anual",
+                "mensaje": f"El trabajador {nombre} ({dept}) tiene vencido o próximo a vencer su Examen Rutinario Anual (Fecha límite: {proximo_rutinario})."
+            })
+
+    return alertas_examenes
+
+def obtener_alertas_examenes() -> List[str]:
+    todas_alertas = []
+    for w in MOCK_WORKERS.values():
+        res = evaluar_examenes_pendientes(w)
+        for item in res:
+            todas_alertas.append(item["mensaje"])
+    return todas_alertas
 
 @app.get("/login")
 def login_view(request: Request):
@@ -157,7 +283,17 @@ def home(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse(request=request, name="worker_profile.html", context={"current_user": user})
+    alertas_contratos = obtener_alertas_contrato()
+    alertas_examenes = obtener_alertas_examenes()
+    return templates.TemplateResponse(
+        request=request, 
+        name="worker_profile.html", 
+        context={
+            "current_user": user, 
+            "contract_alerts": alertas_contratos,
+            "exam_alerts": alertas_examenes
+        }
+    )
 
 @app.get("/register")
 def register_page(request: Request):
@@ -172,8 +308,6 @@ def users_management_page(request: Request):
     if not user or user["role"] not in ["Webmaster", "Coordinador"]:
         return RedirectResponse(url="/")
     return templates.TemplateResponse(request=request, name="user_management.html", context={"current_user": user})
-
-# --- GESTIÓN DE USUARIOS Y ROLES ---
 
 @app.get("/api/users/list")
 def list_users(request: Request):
@@ -224,15 +358,18 @@ def delete_user(username: str, request: Request):
     del MOCK_USERS[uname]
     return {"message": f"El usuario '{username}' ha sido eliminado exitosamente."}
 
-# --- ENDPOINTS DASHBOARD Y TRABAJADORES ---
-
 @app.get("/api/dashboard/stats")
 def get_dashboard_stats():
-    # Si la lista de trabajadores está vacía, retornar 0 en todo y listas vacías para gráficos
     if not MOCK_WORKERS:
         return {
             "total_trabajadores": 0,
+            "total_activos": 0,
             "total_reposo": 0,
+            "total_masculino": 0,
+            "total_femenino": 0,
+            "area_administrativos": 0,
+            "area_operativos": 0,
+            "area_ventas": 0,
             "total_lentes": 0,
             "total_discapacidad": 0,
             "total_cronicas": 0,
@@ -242,7 +379,16 @@ def get_dashboard_stats():
         }
 
     total_trabajadores = len(MOCK_WORKERS)
-    total_reposo = sum(1 for w in MOCK_WORKERS.values() if w.get("is_on_leave"))
+    total_reposo = sum(1 for w in MOCK_WORKERS.values() if evaluar_estatus_trabajador(w) == "EN REPOSO")
+    total_activos = sum(1 for w in MOCK_WORKERS.values() if evaluar_estatus_trabajador(w) == "ACTIVO")
+
+    total_masculino = sum(1 for w in MOCK_WORKERS.values() if w.get("gender") == "Masculino")
+    total_femenino = sum(1 for w in MOCK_WORKERS.values() if w.get("gender") == "Femenino")
+
+    area_administrativos = sum(1 for w in MOCK_WORKERS.values() if w.get("area") == "Administrativo")
+    area_operativos = sum(1 for w in MOCK_WORKERS.values() if w.get("area") == "Operativo")
+    area_ventas = sum(1 for w in MOCK_WORKERS.values() if w.get("area") == "Ventas")
+
     total_lentes = sum(1 for w in MOCK_WORKERS.values() if w.get("uses_glasses") == "Sí")
     total_discapacidad = sum(1 for w in MOCK_WORKERS.values() if w.get("disability_condition") and w.get("disability_condition").strip().lower() != "ninguna")
     total_cronicas = sum(1 for w in MOCK_WORKERS.values() if len(w.get("pathologies", [])) > 0 or (w.get("chronic_treatment") and w.get("chronic_treatment").strip().lower() != "ninguno"))
@@ -299,7 +445,13 @@ def get_dashboard_stats():
 
     return {
         "total_trabajadores": total_trabajadores,
+        "total_activos": total_activos,
         "total_reposo": total_reposo,
+        "total_masculino": total_masculino,
+        "total_femenino": total_femenino,
+        "area_administrativos": area_administrativos,
+        "area_operativos": area_operativos,
+        "area_ventas": area_ventas,
         "total_lentes": total_lentes,
         "total_discapacidad": total_discapacidad,
         "total_cronicas": total_cronicas,
@@ -310,12 +462,15 @@ def get_dashboard_stats():
 
 @app.get("/api/workers/search/{cedula}")
 def search_worker(cedula: str):
-    worker = MOCK_WORKERS.get(cedula)
+    cedula_limpia = cedula.upper().strip()
+    worker = MOCK_WORKERS.get(cedula_limpia)
     if not worker:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado")
     
     worker_copy = dict(worker)
     worker_copy["days_without_rest"] = calcular_dias_sin_reposo(worker)
+    worker_copy["calculated_status"] = evaluar_estatus_trabajador(worker)
+    worker_copy["pending_exams"] = evaluar_examenes_pendientes(worker)
     return worker_copy
 
 @app.post("/api/workers/create")
@@ -323,21 +478,32 @@ async def create_worker(
     cedula: str = Form(...),
     first_name: str = Form(...),
     last_name: str = Form(...),
+    gender: str = Form("Masculino"),
     birthdate: str = Form(...),
     phone: str = Form(""),
     email: str = Form(...),
     address: str = Form(...),
     address_reference: str = Form(...),
+    shirt_size: str = Form(""),
+    pants_size: str = Form(""),
+    shoe_size: str = Form(""),
+    overall_size: str = Form(""),
     emergency_name: str = Form(...),
     emergency_kinship: str = Form(...),
     emergency_phone: str = Form(...),
     worker_code: str = Form(...),
     position: str = Form(...),
     department: str = Form(...),
+    area: str = Form("Operativo"),
     supervisor: str = Form(""),
     employment_type: str = Form(...),
     hire_date: str = Form(...),
+    contract_end_date: str = Form(""),
+    exit_date: str = Form(""),
     service_time: str = Form(""),
+    last_dotation_date: str = Form(""),
+    dotation_status: str = Form("Completa"),
+    dotation_comments: str = Form(""),
     education_level: str = Form(...),
     profession: str = Form(""),
     additional_degrees_json: str = Form("[]"),
@@ -352,29 +518,38 @@ async def create_worker(
     disability_condition: str = Form("Ninguna"),
     pathologies_json: str = Form("[]"),
     medical_events_json: str = Form("[]"),
+    vacations_json: str = Form("[]"),
+    risk_notifications_json: str = Form("[]"),
+    medical_exams_json: str = Form("[]"),
     photo_file: Optional[UploadFile] = File(None)
 ):
-    if cedula in MOCK_WORKERS:
+    cedula_limpia = cedula.upper().strip()
+    if cedula_limpia in MOCK_WORKERS:
         raise HTTPException(status_code=400, detail="La cédula ya se encuentra registrada.")
 
     photo_url = "/static/uploads/default_avatar.png"
     if photo_file and photo_file.filename:
         file_ext = Path(photo_file.filename).suffix
-        filename = f"photo_{cedula}{file_ext}"
+        filename = f"photo_{cedula_limpia}{file_ext}"
         filepath = BASE_DIR / "static/uploads" / filename
         with open(filepath, "wb") as buffer:
             shutil.copyfileobj(photo_file.file, buffer)
         photo_url = f"/static/uploads/{filename}"
 
     new_worker = {
-        "cedula": cedula,
+        "cedula": cedula_limpia,
         "first_name": first_name,
         "last_name": last_name,
+        "gender": gender,
         "birthdate": birthdate,
         "phone": phone,
         "email": email,
         "address": address,
         "address_reference": address_reference,
+        "shirt_size": shirt_size,
+        "pants_size": pants_size,
+        "shoe_size": shoe_size,
+        "overall_size": overall_size,
         "emergency_contact": {
             "name": emergency_name,
             "kinship": emergency_kinship,
@@ -383,10 +558,16 @@ async def create_worker(
         "worker_code": worker_code,
         "position": position,
         "department": department,
+        "area": area,
         "supervisor": supervisor,
         "employment_type": employment_type,
         "hire_date": hire_date,
+        "contract_end_date": contract_end_date if employment_type == "Contratado" else "",
+        "exit_date": exit_date,
         "service_time": service_time,
+        "last_dotation_date": last_dotation_date,
+        "dotation_status": dotation_status,
+        "dotation_comments": dotation_comments,
         "education_level": education_level,
         "profession": profession,
         "additional_degrees": json.loads(additional_degrees_json),
@@ -401,35 +582,49 @@ async def create_worker(
         "disability_condition": disability_condition,
         "pathologies": json.loads(pathologies_json),
         "medical_events": json.loads(medical_events_json),
+        "vacations": json.loads(vacations_json),
+        "risk_notifications": json.loads(risk_notifications_json),
+        "medical_exams": json.loads(medical_exams_json),
         "photo_url": photo_url,
         "is_on_leave": False,
         "leave_days": 0,
         "leave_reason": ""
     }
 
-    MOCK_WORKERS[cedula] = new_worker
-    return {"message": "Trabajador registrado exitosamente", "cedula": cedula}
+    MOCK_WORKERS[cedula_limpia] = new_worker
+    return {"message": "Trabajador registrado exitosamente", "cedula": cedula_limpia}
 
 @app.put("/api/workers/update/{cedula}")
 async def update_worker(
     cedula: str,
     first_name: str = Form(...),
     last_name: str = Form(...),
+    gender: str = Form("Masculino"),
     birthdate: str = Form(...),
     phone: str = Form(""),
     email: str = Form(...),
     address: str = Form(...),
     address_reference: str = Form(...),
+    shirt_size: str = Form(""),
+    pants_size: str = Form(""),
+    shoe_size: str = Form(""),
+    overall_size: str = Form(""),
     emergency_name: str = Form(...),
     emergency_kinship: str = Form(...),
     emergency_phone: str = Form(...),
     worker_code: str = Form(...),
     position: str = Form(...),
     department: str = Form(...),
+    area: str = Form("Operativo"),
     supervisor: str = Form(""),
     employment_type: str = Form(...),
     hire_date: str = Form(...),
+    contract_end_date: str = Form(""),
+    exit_date: str = Form(""),
     service_time: str = Form(""),
+    last_dotation_date: str = Form(""),
+    dotation_status: str = Form("Completa"),
+    dotation_comments: str = Form(""),
     education_level: str = Form(...),
     profession: str = Form(""),
     additional_degrees_json: str = Form("[]"),
@@ -443,20 +638,28 @@ async def update_worker(
     chronic_treatment: str = Form(""),
     disability_condition: str = Form(""),
     pathologies_json: str = Form("[]"),
+    risk_notifications_json: str = Form("[]"),
     photo_file: Optional[UploadFile] = File(None)
 ):
-    worker = MOCK_WORKERS.get(cedula)
+    cedula_limpia = cedula.upper().strip()
+    worker = MOCK_WORKERS.get(cedula_limpia)
     if not worker:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
 
     worker["first_name"] = first_name
     worker["last_name"] = last_name
+    worker["gender"] = gender
     worker["birthdate"] = birthdate
     worker["phone"] = phone
     worker["email"] = email
     worker["address"] = address
     worker["address_reference"] = address_reference
     
+    worker["shirt_size"] = shirt_size
+    worker["pants_size"] = pants_size
+    worker["shoe_size"] = shoe_size
+    worker["overall_size"] = overall_size
+
     worker["emergency_contact"] = {
         "name": emergency_name,
         "kinship": emergency_kinship,
@@ -466,10 +669,17 @@ async def update_worker(
     worker["worker_code"] = worker_code
     worker["position"] = position
     worker["department"] = department
+    worker["area"] = area
     worker["supervisor"] = supervisor
     worker["employment_type"] = employment_type
     worker["hire_date"] = hire_date
+    worker["contract_end_date"] = contract_end_date if employment_type == "Contratado" else ""
+    worker["exit_date"] = exit_date
     worker["service_time"] = service_time
+
+    worker["last_dotation_date"] = last_dotation_date
+    worker["dotation_status"] = dotation_status
+    worker["dotation_comments"] = dotation_comments
 
     worker["education_level"] = education_level
     worker["profession"] = profession
@@ -485,10 +695,14 @@ async def update_worker(
     worker["chronic_treatment"] = chronic_treatment
     worker["disability_condition"] = disability_condition
     worker["pathologies"] = json.loads(pathologies_json)
+    
+    nuevos_riesgos = json.loads(risk_notifications_json)
+    if nuevos_riesgos:
+        worker["risk_notifications"] = nuevos_riesgos
 
     if photo_file and photo_file.filename:
         file_ext = Path(photo_file.filename).suffix
-        filename = f"photo_{cedula}{file_ext}"
+        filename = f"photo_{cedula_limpia}{file_ext}"
         filepath = BASE_DIR / "static/uploads" / filename
         with open(filepath, "wb") as buffer:
             shutil.copyfileobj(photo_file.file, buffer)
@@ -496,9 +710,45 @@ async def update_worker(
 
     return {"message": "Expediente actualizado exitosamente"}
 
+@app.post("/api/workers/add-medical-exam/{cedula}")
+def add_medical_exam(cedula: str, exam: MedicalExamSchema):
+    worker = MOCK_WORKERS.get(cedula.upper().strip())
+    if not worker:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
+    
+    if "medical_exams" not in worker:
+        worker["medical_exams"] = []
+    
+    worker["medical_exams"].append(exam.dict())
+    return {"message": f"Examen preventivo '{exam.tipo_examen}' registrado exitosamente."}
+
+@app.post("/api/workers/add-vacation/{cedula}")
+def add_vacation(cedula: str, vacation: VacationSchema):
+    worker = MOCK_WORKERS.get(cedula.upper().strip())
+    if not worker:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
+    
+    if "vacations" not in worker:
+        worker["vacations"] = []
+    
+    worker["vacations"].append(vacation.dict())
+    return {"message": "Período vacacional registrado exitosamente"}
+
+@app.post("/api/workers/add-risk/{cedula}")
+def add_risk_notification(cedula: str, risk: RiskSchema):
+    worker = MOCK_WORKERS.get(cedula.upper().strip())
+    if not worker:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
+    
+    if "risk_notifications" not in worker:
+        worker["risk_notifications"] = []
+    
+    worker["risk_notifications"].append(risk.dict())
+    return {"message": "Notificación de riesgo registrada exitosamente"}
+
 @app.post("/api/workers/discharge/{cedula}")
 def discharge_worker(cedula: str):
-    worker = MOCK_WORKERS.get(cedula)
+    worker = MOCK_WORKERS.get(cedula.upper().strip())
     if not worker:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
@@ -509,7 +759,7 @@ def discharge_worker(cedula: str):
 
 @app.post("/api/workers/add-event/{cedula}")
 def add_event(cedula: str, event: EventSchema):
-    worker = MOCK_WORKERS.get(cedula)
+    worker = MOCK_WORKERS.get(cedula.upper().strip())
     if not worker:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
@@ -524,29 +774,45 @@ def add_event(cedula: str, event: EventSchema):
 
 @app.delete("/api/workers/delete/{cedula}")
 def delete_worker(cedula: str):
-    if cedula not in MOCK_WORKERS:
+    cedula_limpia = cedula.upper().strip()
+    if cedula_limpia not in MOCK_WORKERS:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado para eliminar")
-    del MOCK_WORKERS[cedula]
-    return {"message": f"Trabajador C.I. {cedula} eliminado correctamente."}
+    del MOCK_WORKERS[cedula_limpia]
+    return {"message": f"Trabajador C.I. {cedula_limpia} eliminado correctamente."}
 
 @app.get("/api/workers/export/excel")
 def export_excel():
     if not MOCK_WORKERS:
-        raise HTTPException(status_code=400, detail="No hay trabajadores registrados.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="No se encontraron registros de trabajadores en la base de datos para exportar."
+        )
 
     records = []
     for w in MOCK_WORKERS.values():
         records.append({
             "Código Trabajador": w.get("worker_code", ""),
             "Cédula": w.get("cedula", ""),
-            "Estatus Reposo": "EN REPOSO" if w.get("is_on_leave") else "ACTIVO",
+            "Estatus Generado": evaluar_estatus_trabajador(w),
             "Nombres": w.get("first_name", ""),
             "Apellidos": w.get("last_name", ""),
+            "Género": w.get("gender", "Masculino"),
             "Cargo": w.get("position", ""),
             "Departamento": w.get("department", ""),
+            "Área": w.get("area", "Operativo"),
+            "Condición Laboral": w.get("employment_type", "Fijo"),
+            "Vencimiento Contrato": w.get("contract_end_date", "N/A"),
+            "Talla Camisa": w.get("shirt_size", ""),
+            "Talla Pantalón": w.get("pants_size", ""),
+            "Talla Calzado": w.get("shoe_size", ""),
+            "Talla Braga/Bata": w.get("overall_size", ""),
             "Usa Lentes": w.get("uses_glasses", "No"),
             "Fecha Ingreso": w.get("hire_date", ""),
-            "Tiempo Servicio": w.get("service_time", "")
+            "Fecha Egreso": w.get("exit_date", ""),
+            "Tiempo Servicio": w.get("service_time", ""),
+            "Última Dotación": w.get("last_dotation_date", ""),
+            "Estatus Dotación": w.get("dotation_status", ""),
+            "Pendientes Dotación": w.get("dotation_comments", "")
         })
 
     df = pd.DataFrame(records)
@@ -561,11 +827,11 @@ def export_excel():
 
 @app.get("/api/workers/export/pdf/{cedula}")
 def export_pdf(cedula: str):
-    worker = MOCK_WORKERS.get(cedula)
+    worker = MOCK_WORKERS.get(cedula.upper().strip())
     if not worker:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
 
-    pdf_filename = f"Ficha_Trabajador_{cedula}.pdf"
+    pdf_filename = f"Ficha_Trabajador_{worker['cedula']}.pdf"
     pdf_path = str(BASE_DIR / f"static/exports/{pdf_filename}")
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -573,14 +839,16 @@ def export_pdf(cedula: str):
     c.drawString(50, 750, "ALIMENTOS MUNCHY, C.A. - FICHA DE SALUD Y SEGURIDAD")
     
     c.setFont("Helvetica", 10)
-    c.drawString(50, 730, f"Cédula: V-{worker['cedula']} | Código: {worker['worker_code']}")
-    c.drawString(50, 715, f"Nombre Completo: {worker['first_name']} {worker['last_name']}")
-    c.drawString(50, 700, f"Cargo: {worker['position']} | Departamento: {worker['department']}")
-    c.drawString(50, 685, f"Fecha de Ingreso: {worker['hire_date']} ({worker.get('service_time', '')})")
-    c.drawString(50, 670, f"Usa Lentes: {worker.get('uses_glasses', 'No')} | Estatus Actual: {'EN REPOSO' if worker.get('is_on_leave') else 'ACTIVO'}")
+    c.drawString(50, 730, f"Cédula: {worker['cedula']} | Código: {worker['worker_code']}")
+    c.drawString(50, 715, f"Nombre Completo: {worker['first_name']} {worker['last_name']} | Género: {worker.get('gender', 'N/A')}")
+    c.drawString(50, 700, f"Cargo: {worker['position']} | Dept: {worker['department']} | Área: {worker.get('area', 'N/A')}")
+    c.drawString(50, 685, f"Condición: {worker.get('employment_type','Fijo')} | Fin Contrato: {worker.get('contract_end_date','N/A')}")
+    c.drawString(50, 670, f"Tallas Uniforme -> Camisa: {worker.get('shirt_size','-')} | Pantalón: {worker.get('pants_size','-')} | Calzado: {worker.get('shoe_size','-')} | Braga: {worker.get('overall_size','-')}")
+    c.drawString(50, 655, f"Estatus Actual: {evaluar_estatus_trabajador(worker)} | Usa Lentes: {worker.get('uses_glasses', 'No')}")
+    c.drawString(50, 640, f"Última Dotación: {worker.get('last_dotation_date', 'N/A')} ({worker.get('dotation_status', 'Completa')}) - {worker.get('dotation_comments', 'Sin pendientes')}")
     
-    c.drawString(50, 640, f"Contacto Emergencia: {worker['emergency_contact']['name']} ({worker['emergency_contact']['kinship']}) - {worker['emergency_contact']['phone']}")
-    c.drawString(50, 625, f"Tipo de Sangre: {worker['blood_type']} | Alergias: {worker['allergies_meds']}")
+    c.drawString(50, 610, f"Contacto Emergencia: {worker['emergency_contact']['name']} ({worker['emergency_contact']['kinship']}) - {worker['emergency_contact']['phone']}")
+    c.drawString(50, 595, f"Tipo de Sangre: {worker['blood_type']} | Alergias: {worker['allergies_meds']}")
     
     c.save()
 

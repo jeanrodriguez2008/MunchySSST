@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MunchySSST - Expediente del Trabajador</title>
 
-    <!-- Configuración PWA e Ícono Oficial (Casco SSST Munchy) -->
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/png" href="/static/img/icon-512.png">
     <link rel="apple-touch-icon" href="/static/img/icon-512.png">
@@ -18,102 +17,33 @@
       }
     </script>
 
-    <!-- CSS Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Iconos FontAwesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- Chart.js para Dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Librería html2pdf.js para generación directa de PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
-        body {
-            background-color: #f4f6f9;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .navbar-munchy {
-            background-color: #ffffff;
-            border-bottom: 3px solid #d9251d;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-        .header-logo {
-            height: 45px;
-            width: auto;
-            object-fit: contain;
-        }
-        .report-header-logo {
-            height: 55px;
-            width: auto;
-            object-fit: contain;
-        }
-        .card-profile {
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-        .profile-img {
-            width: 150px;
-            height: 150px;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 4px solid #fff;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-        }
-        .nav-tabs .nav-link {
-            color: #495057;
-            font-weight: 600;
-            border: none;
-            border-bottom: 3px solid transparent;
-        }
-        .nav-tabs .nav-link.active {
-            color: #d9251d;
-            border-bottom: 3px solid #d9251d;
-            background-color: transparent;
-        }
-        .tab-content {
-            background: #ffffff;
-            padding: 25px;
-            border-radius: 0 0 12px 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        }
-        .badge-status {
-            font-size: 0.9rem;
-            padding: 6px 12px;
-        }
-        .alert-reposo {
-            background-color: #fff3cd;
-            border-left: 5px solid #ffc107;
-            color: #856404;
-        }
-        .section-header-modal {
-            border-bottom: 2px solid #ffc107;
-            padding-bottom: 5px;
-            color: #856404;
-            font-weight: 700;
-            margin-top: 15px;
-            margin-bottom: 15px;
-        }
-        .dynamic-item-edit {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            padding: 8px;
-            margin-bottom: 8px;
-        }
-        .metric-card {
-            border-radius: 10px;
-            border: none;
-            transition: transform 0.2s;
-        }
-        .metric-card:hover {
-            transform: translateY(-3px);
-        }
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar-munchy { background-color: #ffffff; border-bottom: 3px solid #d9251d; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .header-logo { height: 45px; width: auto; object-fit: contain; }
+        .report-header-logo { height: 55px; width: auto; object-fit: contain; }
+        .card-profile { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .profile-img { width: 150px; height: 150px; object-fit: cover; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .nav-tabs .nav-link { color: #495057; font-weight: 600; border: none; border-bottom: 3px solid transparent; }
+        .nav-tabs .nav-link.active { color: #d9251d; border-bottom: 3px solid #d9251d; background-color: transparent; }
+        .tab-content { background: #ffffff; padding: 25px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .badge-status { font-size: 0.9rem; padding: 6px 12px; }
+        .alert-reposo { background-color: #f8d7da; border-left: 5px solid #d9251d; color: #842029; }
+        .alert-vacaciones { background-color: #fff3cd; border-left: 5px solid #ffc107; color: #664d03; }
+        .section-header-modal { border-bottom: 2px solid #ffc107; padding-bottom: 5px; color: #856404; font-weight: 700; margin-top: 15px; margin-bottom: 15px; }
+        .dynamic-item-edit { background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+        .metric-card { border-radius: 10px; border: none; transition: transform 0.2s; }
+        .metric-card:hover { transform: translateY(-3px); }
     </style>
 </head>
 <body>
 
-    <!-- Navbar con Logo Oficial y Encabezado de 2 Líneas -->
     <nav class="navbar navbar-expand-lg navbar-light navbar-munchy mb-4">
         <div class="container-fluid px-4">
             <a class="navbar-brand d-flex align-items-center gap-2" href="/">
@@ -132,7 +62,6 @@
                 <a href="/users" class="btn btn-outline-dark btn-sm me-3"><i class="fa-solid fa-users-gear me-1"></i> Gestión de Usuarios</a>
                 {% endif %}
 
-                <!-- Hidden input para lectura de JS -->
                 <input type="hidden" id="userRoleSession" value="{{ current_user.role }}">
 
                 <div class="d-flex align-items-center me-3 border-start ps-3">
@@ -147,31 +76,61 @@
 
     <div class="container mb-5">
         
-        <!-- DASHBOARD DE INDICADORES GENERALES Y DÍAS SIN ACCIDENTES -->
+        <!-- DASHBOARD DE INDICADORES DE GESTIÓN -->
         <div class="row g-3 mb-4">
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <div class="card metric-card bg-dark text-white p-3 shadow-sm">
+                    <h6 class="text-white-50 mb-1 fw-bold" style="font-size: 0.75rem;">TOTAL TRABAJADORES</h6>
+                    <h2 id="dashTotalTrabajadores" class="fw-bold mb-0">0</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
                 <div class="card metric-card bg-success text-white p-3 shadow-sm">
+                    <h6 class="text-white-50 mb-1 fw-bold" style="font-size: 0.75rem;">ACTIVOS</h6>
+                    <h2 id="dashActivos" class="fw-bold mb-0">0</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metric-card bg-danger text-white p-3 shadow-sm">
+                    <h6 class="text-white-50 mb-1 fw-bold" style="font-size: 0.75rem;">EN REPOSO</h6>
+                    <h2 id="dashReposo" class="fw-bold mb-0">0</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metric-card bg-secondary text-white p-3 shadow-sm">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="text-white-50 mb-1 fw-bold">DÍAS SIN ACCIDENTES (EMPRESA)</h6>
+                            <h6 class="text-white-50 mb-1 fw-bold" style="font-size: 0.75rem;">DÍAS SIN ACCIDENTES</h6>
                             <h2 id="dashDiasEmpresa" class="fw-bold mb-0">0 Días</h2>
                         </div>
                         <i class="fa-solid fa-shield-halved fs-1 opacity-50"></i>
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
-                <div class="card metric-card bg-danger text-white p-3 shadow-sm">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-white-50 mb-1 fw-bold">EN REPOSO</h6>
-                            <h2 id="dashReposo" class="fw-bold mb-0">0</h2>
-                        </div>
-                        <i class="fa-solid fa-bed-pulse fs-1 opacity-50"></i>
+        </div>
+
+        <!-- GRÁFICOS INTERACTIVOS -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card card-profile p-3 h-100">
+                    <h6 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-chart-pie me-2 text-primary"></i>Distribución por Género</h6>
+                    <div style="height: 220px; position: relative;">
+                        <canvas id="chartGenero"></canvas>
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-6">
+                <div class="card card-profile p-3 h-100">
+                    <h6 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-chart-bar me-2 text-info"></i>Trabajadores por Área</h6>
+                    <div style="height: 220px; position: relative;">
+                        <canvas id="chartAreas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
                 <div class="card metric-card bg-primary text-white p-3 shadow-sm">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -182,7 +141,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
                 <div class="card metric-card bg-warning text-dark p-3 shadow-sm">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -193,7 +152,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
                 <div class="card metric-card bg-info text-white p-3 shadow-sm">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -206,7 +165,6 @@
             </div>
         </div>
 
-        <!-- SECCIÓN: DÍAS SIN ACCIDENTES POR GERENCIA Y GRÁFICO CRÓNICAS -->
         <div class="row mb-4 g-3">
             <div class="col-md-6">
                 <div class="card card-profile p-3 h-100">
@@ -236,15 +194,15 @@
             </div>
         </div>
 
-        <!-- Búsqueda por Cédula -->
-        <div class="row mb-4">
+        <!-- SECCIÓN DE BÚSQUEDA RÁPIDA -->
+        <div class="row mb-4" id="searchSectionContainer">
             <div class="col-md-8 mx-auto">
                 <div class="card card-profile p-3">
                     <form id="searchForm" onsubmit="event.preventDefault(); buscarTrabajador();">
                         <label for="cedulaInput" class="form-label fw-bold text-secondary">Búsqueda Rápida por Cédula</label>
                         <div class="input-group input-group-lg">
                             <span class="input-group-text bg-white"><i class="fa-solid fa-id-card text-muted"></i></span>
-                            <input type="text" id="cedulaInput" class="form-control" placeholder="Ingrese número de cédula (ej. 12345678)" required>
+                            <input type="text" id="cedulaInput" class="form-control" placeholder="Ingrese número de cédula (ej. V123456789)" required>
                             <button class="btn btn-danger px-4" type="submit" id="btnBuscar">
                                 <i class="fa-solid fa-magnifying-glass me-2"></i>Buscar
                             </button>
@@ -254,13 +212,10 @@
             </div>
         </div>
 
-        <!-- Alerta de Estado -->
         <div id="alertContainer" class="col-md-8 mx-auto" style="display: none;"></div>
 
-        <!-- Expediente del Trabajador -->
         <div id="workerProfileContainer" style="display: none;">
             
-            <!-- TARJETA PRINCIPAL DEL TRABAJADOR -->
             <div class="card card-profile p-4 mb-4">
                 <div class="row align-items-center">
                     <div class="col-md-3 text-center mb-3 mb-md-0">
@@ -271,31 +226,45 @@
                             <h2 id="workerFullName" class="fw-bold mb-0">---</h2>
                             <span id="workerCodeBadge" class="badge bg-secondary">---</span>
                         </div>
-                        <p id="workerCedula" class="text-muted fs-5 mb-2">C.I.: V-00000000</p>
+                        <p id="workerCedula" class="text-muted fs-5 mb-2">C.I.: V123456789</p>
+                        <p class="mb-1"><strong>Género:</strong> <span id="workerGender">---</span></p>
                         <p class="mb-1"><strong>Cargo:</strong> <span id="workerCargo">---</span></p>
                         <p class="mb-1"><strong>Departamento / Gerencia:</strong> <span id="workerDept">---</span></p>
+                        <p class="mb-1"><strong>Área:</strong> <span id="workerArea">---</span></p>
                         <p class="mb-1"><strong>Jefe Inmediato:</strong> <span id="workerJefe">---</span></p>
 
-                        <!-- RÉCORD DE DÍAS SIN REPOSO -->
                         <div class="mt-2 p-2 bg-light border rounded d-inline-block">
                             <span class="fw-bold text-success"><i class="fa-solid fa-shield-halved me-1"></i>Récord de Días Sin Reposo:</span>
                             <span id="workerDaysWithoutRest" class="fw-bold fs-5 text-dark ms-1">0 Días</span>
                         </div>
 
-                        <div id="reposoDetailsContainer" class="alert alert-reposo mt-3 p-2 mb-0 rounded" style="display: none;">
+                        <!-- ALERTA DE REPOSO MÉDICO -->
+                        <div id="reposoDetailsContainer" class="alert alert-reposo mt-3 p-3 mb-0 rounded" style="display: none;">
                             <div class="d-flex align-items-center justify-content-between">
                                 <div class="d-flex align-items-center">
-                                    <i class="fa-solid fa-bed-pulse fs-4 me-2 text-warning"></i>
+                                    <i class="fa-solid fa-bed-pulse fs-3 me-3 text-danger"></i>
                                     <div>
-                                        <strong id="reposoDaysText">EN REPOSO MÉDICO (0 Días)</strong><br>
+                                        <strong id="reposoDaysText" class="fs-6">EN REPOSO MÉDICO (0 Días Inactivo)</strong><br>
                                         <small id="reposoCausaText">Diagnóstico: ---</small>
                                     </div>
                                 </div>
-                                <button id="btnDarDeAlta" class="btn btn-success btn-sm ms-2" onclick="darDeAltaTrabajador()">
+                                <button id="btnDarDeAlta" class="btn btn-success btn-sm ms-2 fw-bold" onclick="darDeAltaTrabajador()">
                                     <i class="fa-solid fa-user-check me-1"></i> Dar de Alta
                                 </button>
                             </div>
                         </div>
+
+                        <!-- ALERTA DE VACACIONES ACTIVAS -->
+                        <div id="vacacionesDetailsContainer" class="alert alert-vacaciones mt-3 p-3 mb-0 rounded" style="display: none;">
+                            <div class="d-flex align-items-center">
+                                <i class="fa-solid fa-umbrella-beach fs-3 me-3 text-warning"></i>
+                                <div>
+                                    <strong id="vacacionesText" class="fs-6">DE VACACIONES (0 Días Inactivo)</strong><br>
+                                    <small id="vacacionesReintegroText" class="fw-bold text-dark">Fecha de Reintegro: --/--/----</small>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div class="col-md-3 text-md-end text-center mt-3 mt-md-0">
@@ -305,7 +274,7 @@
                         </div>
                         
                         <div class="d-flex flex-column gap-2 mt-3">
-                            <button class="btn btn-outline-danger btn-sm" onclick="exportarPDF()">
+                            <button id="btnExportPDF" class="btn btn-outline-danger btn-sm" onclick="exportarPDF()">
                                 <i class="fa-solid fa-file-pdf me-1"></i> Descargar PDF
                             </button>
                             <button id="btnEditarRegistro" class="btn btn-warning btn-sm text-dark fw-bold" onclick="abrirModalEditar()">
@@ -319,11 +288,15 @@
                 </div>
             </div>
 
-            <!-- Pestañas de Información -->
             <ul class="nav nav-tabs" id="myTab" role="tablist">
                 <li class="nav-item">
                     <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button">
-                        <i class="fa-solid fa-user me-2"></i>Datos Personales y Laborales
+                        <i class="fa-solid fa-user me-2"></i>Datos Personales y Tallas
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="laboral-tab" data-bs-toggle="tab" data-bs-target="#laboral" type="button">
+                        <i class="fa-solid fa-briefcase me-2"></i>Datos Laborales, Vacaciones y Riesgos
                     </button>
                 </li>
                 <li class="nav-item">
@@ -333,7 +306,7 @@
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" id="medical-tab" data-bs-toggle="tab" data-bs-target="#medical" type="button">
-                        <i class="fa-solid fa-notes-medical me-2"></i>Antecedentes Médicos
+                        <i class="fa-solid fa-notes-medical me-2"></i>Antecedentes y Exámenes Médicos
                     </button>
                 </li>
                 <li class="nav-item">
@@ -345,7 +318,7 @@
 
             <div class="tab-content" id="myTabContent">
                 
-                <!-- Pestaña 1: Personales y Laborales -->
+                <!-- Pestaña 1: Personales y Tallas de Uniforme -->
                 <div class="tab-pane fade show active" id="personal">
                     <h5 class="fw-bold mb-3 text-secondary">Información General</h5>
                     <div class="row g-3">
@@ -369,6 +342,25 @@
                             <label class="form-label text-muted">Punto de Referencia</label>
                             <p id="workerReference" class="fw-semibold">---</p>
                         </div>
+
+                        <hr>
+                        <h5 class="fw-bold mb-3 text-secondary"><i class="fa-solid fa-shirt me-2 text-danger"></i>Tallas de Uniforme</h5>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Camisa / Chemisse / Franela</label>
+                            <p id="workerShirtSize" class="fw-semibold text-danger fs-6">---</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Pantalón</label>
+                            <p id="workerPantsSize" class="fw-semibold text-danger fs-6">---</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Calzado / Zapato</label>
+                            <p id="workerShoeSize" class="fw-semibold text-danger fs-6">---</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Braga / Bata</label>
+                            <p id="workerOverallSize" class="fw-semibold text-danger fs-6">---</p>
+                        </div>
                         
                         <hr>
                         <h5 class="fw-bold mb-3 text-secondary">Contacto de Emergencia</h5>
@@ -384,9 +376,13 @@
                             <label class="form-label text-muted">Teléfono Emergencia</label>
                             <p id="emergencyPhone" class="fw-semibold">---</p>
                         </div>
+                    </div>
+                </div>
 
-                        <hr>
-                        <h5 class="fw-bold mb-3 text-secondary">Información Laboral</h5>
+                <!-- Pestaña 2: Laborales, Dotación, Vacaciones y Riesgos -->
+                <div class="tab-pane fade" id="laboral">
+                    <h5 class="fw-bold mb-3 text-secondary">Información Laboral Base</h5>
+                    <div class="row g-3 mb-4">
                         <div class="col-md-3">
                             <label class="form-label text-muted">Código de Trabajador</label>
                             <p id="workerCode" class="fw-semibold text-danger">---</p>
@@ -394,6 +390,10 @@
                         <div class="col-md-3">
                             <label class="form-label text-muted">Fecha de Ingreso</label>
                             <p id="workerHireDate" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Fecha de Egreso / Cese</label>
+                            <p id="workerExitDate" class="fw-semibold text-danger">---</p>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label text-muted">Antigüedad (Servicio)</label>
@@ -404,9 +404,71 @@
                             <p id="workerCondition" class="fw-semibold">---</p>
                         </div>
                     </div>
+
+                    <hr>
+                    <h5 class="fw-bold mb-3 text-secondary"><i class="fa-solid fa-boxes-packing me-2 text-danger"></i>Control de Última Dotación</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label text-muted">Fecha de Última Dotación</label>
+                            <p id="workerLastDotationDate" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted">Estatus de Entrega</label>
+                            <p id="workerDotationStatus" class="fw-semibold text-primary">---</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted">Comentarios / Pendientes</label>
+                            <p id="workerDotationComments" class="fw-semibold text-danger">---</p>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-secondary mb-0"><i class="fa-solid fa-umbrella-beach me-2 text-warning"></i>Historial y Control de Vacaciones</h5>
+                        <button id="btnRegistrarVacaciones" class="btn btn-warning btn-sm fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#modalNuevaVacacion">
+                            <i class="fa-solid fa-plus me-1"></i> Registrar Vacaciones
+                        </button>
+                    </div>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha Inicio</th>
+                                    <th>Fecha Reintegro</th>
+                                    <th>Días Disfrute</th>
+                                    <th>Observaciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vacationsTableBody">
+                                <tr><td colspan="4" class="text-center text-muted">Sin períodos vacacionales registrados.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-secondary mb-0"><i class="fa-solid fa-triangle-exclamation me-2 text-danger"></i>Notificaciones de Riesgo Ocupacional</h5>
+                        <button id="btnAgregarRiesgo" class="btn btn-danger btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalNotificacionRiesgo">
+                            <i class="fa-solid fa-plus me-1"></i> Agregar Notificación de Riesgo
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha Notificación</th>
+                                    <th>Puesto Evaluado</th>
+                                    <th>Riesgos Notificados</th>
+                                </tr>
+                            </thead>
+                            <tbody id="risksTableBody">
+                                <tr><td colspan="3" class="text-center text-muted">Sin notificaciones de riesgo registradas.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <!-- Pestaña 2: Perfil Profesional -->
+                <!-- Pestaña 3: Perfil Profesional -->
                 <div class="tab-pane fade" id="academic">
                     <h5 class="fw-bold mb-3 text-secondary">Nivel Académico y Formación</h5>
                     <div class="row g-3">
@@ -437,10 +499,10 @@
                     </div>
                 </div>
 
-                <!-- Pestaña 3: Antecedentes Médicos -->
+                <!-- Pestaña 4: Antecedentes Médicos y Calendario de Exámenes Preventivos -->
                 <div class="tab-pane fade" id="medical">
                     <h5 class="fw-bold mb-3 text-secondary">Ficha Salud Ocupacional</h5>
-                    <div class="row g-3">
+                    <div class="row g-3 mb-4">
                         <div class="col-md-3">
                             <label class="form-label text-muted">Tipo de Sangre</label>
                             <p id="workerBloodType" class="fw-semibold text-danger fs-5">---</p>
@@ -466,9 +528,36 @@
                             <p id="workerDisability" class="fw-semibold">---</p>
                         </div>
                     </div>
+
+                    <hr>
+                    <!-- PLANIFICADOR AUTOMATIZADO DE EXÁMENES MÉDICOS PREVENTIVOS -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-secondary mb-0"><i class="fa-solid fa-calendar-check me-2 text-danger"></i>Calendario de Exámenes Preventivos Anuales</h5>
+                        <button id="btnRegistrarExamen" class="btn btn-danger btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuevoExamenMedico">
+                            <i class="fa-solid fa-stethoscope me-1"></i> Registrar Examen Realizado
+                        </button>
+                    </div>
+
+                    <div id="examAlertsContainer" class="mb-3" style="display: none;"></div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha Realización</th>
+                                    <th>Tipo de Examen</th>
+                                    <th>Resultado / Estatus</th>
+                                    <th>Observaciones Médicas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="examsTableBody">
+                                <tr><td colspan="4" class="text-center text-muted">Sin exámenes médicos preventivos registrados.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <!-- Pestaña 4: Historial de Eventos -->
+                <!-- Pestaña 5: Historial de Eventos -->
                 <div class="tab-pane fade" id="events">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="fw-bold text-secondary mb-0">Historial de Eventos e Incidentes</h5>
@@ -500,7 +589,110 @@
 
     </div>
 
-    <!-- MODAL DE INFORME INTELIGENTE SSST CON LOGO INSTITUCIONAL -->
+    <!-- MODAL DE ASIGNACIÓN DE VACACIONES -->
+    <div class="modal fade" id="modalNuevaVacacion" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-umbrella-beach me-2"></i>Asignar Período Vacacional</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formVacacion" onsubmit="event.preventDefault(); guardarNuevaVacacion();">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Fecha de Inicio *</label>
+                            <input type="date" id="vac_start_date" class="form-control" onchange="calcularDiasYReintegroVacaciones()" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Fecha de Reintegro (Retorno al Trabajo) *</label>
+                            <input type="date" id="vac_return_date" class="form-control" onchange="calcularDiasYReintegroVacaciones()" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-primary">Días Totales de Disfrute Calculados</label>
+                            <input type="text" id="vac_days_count" class="form-control bg-light fw-bold text-primary" readonly placeholder="Se calcula automáticamente">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Observaciones</label>
+                            <textarea id="vac_obs" class="form-control" rows="2" placeholder="Ej. Período correspondiente al año 2025-2026"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 fw-bold text-dark">Guardar Vacaciones</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE EXAMEN MÉDICO PREVENTIVO -->
+    <div class="modal fade" id="modalNuevoExamenMedico" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-stethoscope me-2"></i>Registrar Examen Médico Preventivo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formExamenMedico" onsubmit="event.preventDefault(); guardarExamenMedico();">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Fecha del Examen *</label>
+                            <input type="date" id="exam_date" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tipo de Examen Preventivo *</label>
+                            <select id="exam_type" class="form-select" required>
+                                <option value="Prevacacional">Prevacacional</option>
+                                <option value="Postvacacional">Postvacacional</option>
+                                <option value="Rutinario Anual">Rutinario Anual</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Resultado / Dictamen *</label>
+                            <select id="exam_result" class="form-select" required>
+                                <option value="Apto">Apto</option>
+                                <option value="Apto con Restricciones">Apto con Restricciones</option>
+                                <option value="No Apto Temporal">No Apto Temporal</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Observaciones Médicas / Recomendaciones</label>
+                            <textarea id="exam_obs" class="form-control" rows="3" placeholder="Ej. Control audiométrico dentro de los rangos normales."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger w-100 fw-bold">Guardar Examen Médico</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE NOTIFICACIÓN DE RIESGO -->
+    <div class="modal fade" id="modalNotificacionRiesgo" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-triangle-exclamation me-2"></i>Agregar Notificación de Riesgo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formNotificacionRiesgo" onsubmit="event.preventDefault(); guardarNotificacionRiesgo();">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Fecha de Notificación *</label>
+                            <input type="date" id="risk_date" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Puesto / Área Evaluada *</label>
+                            <input type="text" id="risk_position" class="form-control" required placeholder="Ej. Operador de Montacargas">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Riesgos Identificados / Notificados *</label>
+                            <textarea id="risk_description" class="form-control" rows="3" required placeholder="Ej. Exposición a ruido continuo, atrapamiento por partes móviles, posturas forzadas."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger w-100 fw-bold">Guardar Notificación de Riesgo</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE INFORME INTELIGENTE SSST -->
     <div class="modal fade" id="modalInformeInteligente" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
@@ -509,8 +701,6 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
-                    
-                    <!-- ÁREA ESPECÍFICA CAPTURADA PARA EL PDF -->
                     <div id="informePdfContent" class="p-4 bg-white">
                         <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
                             <div class="d-flex align-items-center gap-3">
@@ -522,17 +712,15 @@
                                 </div>
                             </div>
                             <div class="text-end">
-                                <span class="badge bg-secondary p-2 fs-6" id="reportFechaGeneracion">Fecha: 26/08/2026</span>
+                                <span class="badge bg-secondary p-2 fs-6" id="reportFechaGeneracion">Fecha: 27/08/2026</span>
                             </div>
                         </div>
 
-                        <!-- RESUMEN INTELIGENTE -->
                         <div class="alert alert-light border border-danger rounded-3 p-3 mb-4">
                             <h6 class="fw-bold text-danger mb-2"><i class="fa-solid fa-lightbulb me-2"></i>Resumen Ejecutivo Diagnóstico:</h6>
                             <p id="resumenTextoInteligente" class="mb-0 text-dark" style="line-height: 1.6;">Generando análisis...</p>
                         </div>
 
-                        <!-- GRÁFICOS DEL INFORME -->
                         <div class="row g-4 mb-2">
                             <div class="col-6">
                                 <div class="card p-3 border shadow-sm">
@@ -552,7 +740,6 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -579,7 +766,7 @@
                                 <button class="nav-link active" id="edit-personal-tab" data-bs-toggle="pill" data-bs-target="#edit-personal" type="button"><i class="fa-solid fa-address-card me-1"></i> 1. Personales y Emergencia</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="edit-laboral-tab" data-bs-toggle="pill" data-bs-target="#edit-laboral" type="button"><i class="fa-solid fa-briefcase me-1"></i> 2. Laborales</button>
+                                <button class="nav-link" id="edit-laboral-tab" data-bs-toggle="pill" data-bs-target="#edit-laboral" type="button"><i class="fa-solid fa-briefcase me-1"></i> 2. Laborales y Riesgos</button>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="edit-academic-tab" data-bs-toggle="pill" data-bs-target="#edit-academic" type="button"><i class="fa-solid fa-graduation-cap me-1"></i> 3. Perfil Profesional</button>
@@ -591,18 +778,25 @@
 
                         <div class="tab-content border p-3 rounded" id="editTabContent">
                             
-                            <!-- SECCIÓN 1: Personales -->
+                            <!-- SECCIÓN 1: Personales y Tallas -->
                             <div class="tab-pane fade show active" id="edit-personal">
                                 <div class="row g-3">
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <label class="form-label fw-bold">Nombres *</label>
                                         <input type="text" id="edit_first_name" class="form-control" required>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <label class="form-label fw-bold">Apellidos *</label>
                                         <input type="text" id="edit_last_name" class="form-control" required>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">Género *</label>
+                                        <select id="edit_gender" class="form-select" required>
+                                            <option value="Masculino">Masculino</option>
+                                            <option value="Femenino">Femenino</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
                                         <label class="form-label fw-bold">Fecha de Nacimiento *</label>
                                         <input type="date" id="edit_birthdate" class="form-control" required>
                                     </div>
@@ -627,6 +821,12 @@
                                         <input type="text" id="edit_address_reference" class="form-control" required>
                                     </div>
 
+                                    <div class="col-12"><h6 class="section-header-modal"><i class="fa-solid fa-shirt me-1"></i>Tallas de Uniforme</h6></div>
+                                    <div class="col-md-3"><label class="form-label fw-bold">Camisa / Chemisse</label><input type="text" id="edit_shirt_size" class="form-control" placeholder="Ej. M"></div>
+                                    <div class="col-md-3"><label class="form-label fw-bold">Pantalón</label><input type="text" id="edit_pants_size" class="form-control" placeholder="Ej. 32"></div>
+                                    <div class="col-md-3"><label class="form-label fw-bold">Calzado / Zapato</label><input type="text" id="edit_shoe_size" class="form-control" placeholder="Ej. 41"></div>
+                                    <div class="col-md-3"><label class="form-label fw-bold">Braga / Bata</label><input type="text" id="edit_overall_size" class="form-control" placeholder="Ej. L"></div>
+
                                     <div class="col-12"><h6 class="section-header-modal"><i class="fa-solid fa-phone-volume me-1"></i>Contacto de Emergencia</h6></div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Nombre Emergencia *</label>
@@ -646,17 +846,25 @@
                             <!-- SECCIÓN 2: Laborales -->
                             <div class="tab-pane fade" id="edit-laboral">
                                 <div class="row g-3">
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <label class="form-label fw-bold">Código Trabajador *</label>
                                         <input type="text" id="edit_worker_code" class="form-control" required>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <label class="form-label fw-bold">Cargo *</label>
                                         <input type="text" id="edit_position" class="form-control" required>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <label class="form-label fw-bold">Departamento / Gerencia *</label>
                                         <input type="text" id="edit_department" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">Área *</label>
+                                        <select id="edit_area" class="form-select" required>
+                                            <option value="Administrativo">Administrativo</option>
+                                            <option value="Operativo">Operativo</option>
+                                            <option value="Ventas">Ventas</option>
+                                        </select>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Jefe Inmediato</label>
@@ -673,9 +881,38 @@
                                         <label class="form-label fw-bold">Fecha de Ingreso *</label>
                                         <input type="date" id="edit_hire_date" class="form-control" onchange="calcularTiempoServicioEdicion()" required>
                                     </div>
-                                    <div class="col-md-12">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold text-danger">Fecha de Egreso / Cese</label>
+                                        <input type="date" id="edit_exit_date" class="form-control" onchange="calcularTiempoServicioEdicion()">
+                                    </div>
+                                    <div class="col-md-8">
                                         <label class="form-label fw-bold text-danger">Antigüedad Calculada</label>
                                         <input type="text" id="edit_service_time" class="form-control bg-light" readonly>
+                                    </div>
+
+                                    <div class="col-12"><h6 class="section-header-modal"><i class="fa-solid fa-boxes-packing me-1"></i>Última Dotación</h6></div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Fecha Última Dotación</label>
+                                        <input type="date" id="edit_last_dotation_date" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Estatus Dotación</label>
+                                        <select id="edit_dotation_status" class="form-select">
+                                            <option value="Completa">Completa</option>
+                                            <option value="Incompleta">Incompleta</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Comentarios / Pendientes</label>
+                                        <input type="text" id="edit_dotation_comments" class="form-control">
+                                    </div>
+
+                                    <div class="col-12 mt-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="form-label fw-bold mb-0 text-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i>Notificaciones de Riesgo Ocupacional</label>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="agregarCampoEditRiesgo()"><i class="fa-solid fa-plus me-1"></i>Agregar Riesgo</button>
+                                        </div>
+                                        <div id="editRiesgosContainer"></div>
                                     </div>
                                 </div>
                             </div>
@@ -697,7 +934,6 @@
                                         <input type="text" id="edit_profession" class="form-control">
                                     </div>
 
-                                    <!-- Carreras y Estudios Adicionales -->
                                     <div class="col-12 mt-3">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <label class="form-label fw-bold mb-0 text-primary"><i class="fa-solid fa-graduation-cap me-1"></i>Carreras y Estudios Adicionales</label>
@@ -706,7 +942,6 @@
                                         <div id="editEstudiosContainer"></div>
                                     </div>
 
-                                    <!-- Cursos Realizados -->
                                     <div class="col-12 mt-2">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <label class="form-label fw-bold mb-0 text-primary"><i class="fa-solid fa-book-open me-1"></i>Cursos Realizados</label>
@@ -715,7 +950,6 @@
                                         <div id="editCursosContainer"></div>
                                     </div>
 
-                                    <!-- Certificaciones Obtenidas -->
                                     <div class="col-md-6 mt-2">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <label class="form-label fw-bold mb-0 text-primary"><i class="fa-solid fa-certificate me-1"></i>Certificaciones Obtenidas</label>
@@ -724,7 +958,6 @@
                                         <div id="editCertificacionesContainer"></div>
                                     </div>
 
-                                    <!-- Reconocimientos Otorgados -->
                                     <div class="col-md-6 mt-2">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <label class="form-label fw-bold mb-0 text-primary"><i class="fa-solid fa-award me-1"></i>Reconocimientos Otorgados</label>
@@ -866,6 +1099,86 @@
                 window.open(pdfUrl, '_blank');
             });
         }
+
+        async function guardarExamenMedico() {
+            const cedula = document.getElementById('workerCedula').textContent.replace('C.I.:', '').trim();
+            const data = {
+                fecha: document.getElementById('exam_date').value,
+                tipo_examen: document.getElementById('exam_type').value,
+                resultado: document.getElementById('exam_result').value,
+                observaciones: document.getElementById('exam_obs').value.trim()
+            };
+
+            try {
+                const response = await fetch(`/api/workers/add-medical-exam/${cedula}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    const modalEl = document.getElementById('modalNuevoExamenMedico');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+
+                    Swal.fire({
+                        title: 'Examen Registrado',
+                        text: result.message,
+                        icon: 'success',
+                        confirmButtonColor: '#d9251d'
+                    }).then(() => {
+                        buscarTrabajador();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error',
+                        text: result.detail || 'Ocurrió un inconveniente al guardar el examen.',
+                        icon: 'error',
+                        confirmButtonColor: '#d9251d'
+                    });
+                }
+            } catch (err) {
+                Swal.fire({
+                    title: 'Error de Red',
+                    text: 'Inconveniente al conectar con el servidor.',
+                    icon: 'error',
+                    confirmButtonColor: '#d9251d'
+                });
+            }
+        }
     </script>
+
+    <!-- SCRIPT DE ALERTAS AUTOMÁTICAS AL INICIAR SESIÓN (CONTRATOS Y EXÁMENES MÉDICOS PREVENTIVOS) -->
+    {% if contract_alerts or exam_alerts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const alertasContratos = {{ contract_alerts | tojson if contract_alerts else [] }};
+            const alertasExamenes = {{ exam_alerts | tojson if exam_alerts else [] }};
+
+            let htmlContent = '';
+
+            if (alertasContratos.length > 0) {
+                htmlContent += `<h6 class="fw-bold text-danger text-start border-bottom pb-1"><i class="fa-solid fa-file-contract me-2"></i>Contratos Próximos a Vencer:</h6>`;
+                htmlContent += alertasContratos.map(a => `<p class="mb-2 text-start small"><i class="fa-solid fa-triangle-exclamation text-warning me-2"></i>${a}</p>`).join('');
+            }
+
+            if (alertasExamenes.length > 0) {
+                htmlContent += `<h6 class="fw-bold text-danger text-start border-bottom pb-1 mt-3"><i class="fa-solid fa-stethoscope me-2"></i>Exámenes Médicos Preventivos Pendientes:</h6>`;
+                htmlContent += alertasExamenes.map(a => `<p class="mb-2 text-start small"><i class="fa-solid fa-calendar-day text-danger me-2"></i>${a}</p>`).join('');
+            }
+
+            if (htmlContent) {
+                Swal.fire({
+                    title: 'Alertas de Gestión SSST',
+                    html: `<div class="p-2" style="max-height: 350px; overflow-y: auto;">${htmlContent}</div>`,
+                    icon: 'warning',
+                    confirmButtonColor: '#d9251d',
+                    confirmButtonText: 'Entendido'
+                });
+            }
+        });
+    </script>
+    {% endif %}
 </body>
 </html>
