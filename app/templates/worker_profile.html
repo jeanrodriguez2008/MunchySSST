@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MunchySSST - Expediente del Trabajador</title>
+
+    <!-- Configuración PWA y Favicon -->
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" href="/static/img/icon-192.png">
+    <link rel="apple-touch-icon" href="/static/img/icon-512.png">
+    <meta name="theme-color" content="#d9251d">
+
+    <!-- CSS Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Iconos FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js para Dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Librería html2pdf.js para generación directa de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar-munchy {
+            background-color: #ffffff;
+            border-bottom: 3px solid #d9251d;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .header-logo {
+            height: 45px;
+            width: auto;
+            object-fit: contain;
+        }
+        .report-header-logo {
+            height: 55px;
+            width: auto;
+            object-fit: contain;
+        }
+        .card-profile {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .profile-img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 4px solid #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        .nav-tabs .nav-link {
+            color: #495057;
+            font-weight: 600;
+            border: none;
+            border-bottom: 3px solid transparent;
+        }
+        .nav-tabs .nav-link.active {
+            color: #d9251d;
+            border-bottom: 3px solid #d9251d;
+            background-color: transparent;
+        }
+        .tab-content {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .badge-status {
+            font-size: 0.9rem;
+            padding: 6px 12px;
+        }
+        .alert-reposo {
+            background-color: #fff3cd;
+            border-left: 5px solid #ffc107;
+            color: #856404;
+        }
+        .section-header-modal {
+            border-bottom: 2px solid #ffc107;
+            padding-bottom: 5px;
+            color: #856404;
+            font-weight: 700;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        .dynamic-item-edit {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+        .metric-card {
+            border-radius: 10px;
+            border: none;
+            transition: transform 0.2s;
+        }
+        .metric-card:hover {
+            transform: translateY(-3px);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar con Logo Oficial y Encabezado de 2 Líneas -->
+    <nav class="navbar navbar-expand-lg navbar-light navbar-munchy mb-4">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                <img src="/static/img/logo_header.png" alt="Munchy Logo" class="header-logo">
+                <div class="border-start ps-3 border-2 border-danger d-flex flex-column">
+                    <span class="fw-bold text-danger fs-6 lh-1">Servicio de Seguridad y Salud en el Trabajo</span>
+                    <small class="text-muted fw-semibold mt-1" style="font-size: 0.8rem;">Coordinación de SSST</small>
+                </div>
+            </a>
+            <div class="d-flex align-items-center">
+                <button onclick="generarInformeInteligente()" class="btn btn-outline-primary btn-sm me-2"><i class="fa-solid fa-brain me-1"></i> Informe Inteligente</button>
+                <a href="/api/workers/export/excel" id="btnExportExcel" class="btn btn-outline-success btn-sm me-2"><i class="fa-solid fa-file-excel me-1"></i> Exportar a Excel</a>
+                <a href="/register" id="btnRegisterWorker" class="btn btn-danger btn-sm me-2"><i class="fa-solid fa-user-plus me-1"></i> Registrar Trabajador</a>
+                
+                {% if current_user.role in ['Webmaster', 'Coordinador'] %}
+                <a href="/users" class="btn btn-outline-dark btn-sm me-3"><i class="fa-solid fa-users-gear me-1"></i> Gestión de Usuarios</a>
+                {% endif %}
+
+                <!-- Hidden input para lectura de JS -->
+                <input type="hidden" id="userRoleSession" value="{{ current_user.role }}">
+
+                <div class="d-flex align-items-center me-3 border-start ps-3">
+                    <span class="badge bg-secondary me-2">{{ current_user.role }}</span>
+                    <span class="fw-bold text-secondary"><i class="fa-solid fa-user me-1 text-danger"></i> {{ current_user.username }}</span>
+                </div>
+                
+                <a href="/logout" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-right-from-bracket"></i> Salir</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mb-5">
+        
+        <!-- DASHBOARD DE INDICADORES GENERALES Y DÍAS SIN ACCIDENTES -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card metric-card bg-success text-white p-3 shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-1 fw-bold">DÍAS SIN ACCIDENTES (EMPRESA)</h6>
+                            <h2 id="dashDiasEmpresa" class="fw-bold mb-0">0 Días</h2>
+                        </div>
+                        <i class="fa-solid fa-shield-halved fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card metric-card bg-danger text-white p-3 shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-1 fw-bold">EN REPOSO</h6>
+                            <h2 id="dashReposo" class="fw-bold mb-0">0</h2>
+                        </div>
+                        <i class="fa-solid fa-bed-pulse fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card metric-card bg-primary text-white p-3 shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-1 fw-bold">USAN LENTES</h6>
+                            <h2 id="dashLentes" class="fw-bold mb-0">0</h2>
+                        </div>
+                        <i class="fa-solid fa-glasses fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card metric-card bg-warning text-dark p-3 shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-dark-50 mb-1 fw-bold">DISCAPACIDAD</h6>
+                            <h2 id="dashDiscapacidad" class="fw-bold mb-0">0</h2>
+                        </div>
+                        <i class="fa-solid fa-wheelchair fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card metric-card bg-info text-white p-3 shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-1 fw-bold">ENF. CRÓNICAS</h6>
+                            <h2 id="dashCronicas" class="fw-bold mb-0">0</h2>
+                        </div>
+                        <i class="fa-solid fa-heart-pulse fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN: DÍAS SIN ACCIDENTES POR GERENCIA Y GRÁFICO CRÓNICAS -->
+        <div class="row mb-4 g-3">
+            <div class="col-md-6">
+                <div class="card card-profile p-3 h-100">
+                    <h6 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-building-user me-2 text-danger"></i>Días Sin Accidentes por Gerencia / Departamento</h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Gerencia / Departamento</th>
+                                    <th class="text-end">Días Sin Accidentes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableGerenciasBody">
+                                <tr><td colspan="2" class="text-center text-muted">Cargando datos por gerencia...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card card-profile p-3 h-100">
+                    <h6 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-chart-column me-2 text-danger"></i>Top 3 Enfermedades Crónicas Registradas</h6>
+                    <div style="max-height: 200px;">
+                        <canvas id="topCronicasChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Búsqueda por Cédula -->
+        <div class="row mb-4">
+            <div class="col-md-8 mx-auto">
+                <div class="card card-profile p-3">
+                    <form id="searchForm" onsubmit="event.preventDefault(); buscarTrabajador();">
+                        <label for="cedulaInput" class="form-label fw-bold text-secondary">Búsqueda Rápida por Cédula</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-white"><i class="fa-solid fa-id-card text-muted"></i></span>
+                            <input type="text" id="cedulaInput" class="form-control" placeholder="Ingrese número de cédula (ej. 12345678)" required>
+                            <button class="btn btn-danger px-4" type="submit" id="btnBuscar">
+                                <i class="fa-solid fa-magnifying-glass me-2"></i>Buscar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerta de Estado -->
+        <div id="alertContainer" class="col-md-8 mx-auto" style="display: none;"></div>
+
+        <!-- Expediente del Trabajador -->
+        <div id="workerProfileContainer" style="display: none;">
+            
+            <!-- TARJETA PRINCIPAL DEL TRABAJADOR -->
+            <div class="card card-profile p-4 mb-4">
+                <div class="row align-items-center">
+                    <div class="col-md-3 text-center mb-3 mb-md-0">
+                        <img id="workerPhoto" src="/static/uploads/default_avatar.png" alt="Foto del Trabajador" class="profile-img">
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <h2 id="workerFullName" class="fw-bold mb-0">---</h2>
+                            <span id="workerCodeBadge" class="badge bg-secondary">---</span>
+                        </div>
+                        <p id="workerCedula" class="text-muted fs-5 mb-2">C.I.: V-00000000</p>
+                        <p class="mb-1"><strong>Cargo:</strong> <span id="workerCargo">---</span></p>
+                        <p class="mb-1"><strong>Departamento / Gerencia:</strong> <span id="workerDept">---</span></p>
+                        <p class="mb-1"><strong>Jefe Inmediato:</strong> <span id="workerJefe">---</span></p>
+
+                        <!-- RÉCORD DE DÍAS SIN REPOSO -->
+                        <div class="mt-2 p-2 bg-light border rounded d-inline-block">
+                            <span class="fw-bold text-success"><i class="fa-solid fa-shield-halved me-1"></i>Récord de Días Sin Reposo:</span>
+                            <span id="workerDaysWithoutRest" class="fw-bold fs-5 text-dark ms-1">0 Días</span>
+                        </div>
+
+                        <div id="reposoDetailsContainer" class="alert alert-reposo mt-3 p-2 mb-0 rounded" style="display: none;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    <i class="fa-solid fa-bed-pulse fs-4 me-2 text-warning"></i>
+                                    <div>
+                                        <strong id="reposoDaysText">EN REPOSO MÉDICO (0 Días)</strong><br>
+                                        <small id="reposoCausaText">Diagnóstico: ---</small>
+                                    </div>
+                                </div>
+                                <button id="btnDarDeAlta" class="btn btn-success btn-sm ms-2" onclick="darDeAltaTrabajador()">
+                                    <i class="fa-solid fa-user-check me-1"></i> Dar de Alta
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 text-md-end text-center mt-3 mt-md-0">
+                        <div class="mb-2">
+                            <span id="workerConditionBadge" class="badge bg-success badge-status me-1">PERSONAL FIJO</span>
+                            <span id="workerStatusBadge" class="badge bg-success badge-status"><i class="fa-solid fa-circle-check me-1"></i>ACTIVO</span>
+                        </div>
+                        
+                        <div class="d-flex flex-column gap-2 mt-3">
+                            <button class="btn btn-outline-danger btn-sm" onclick="exportarPDF()">
+                                <i class="fa-solid fa-file-pdf me-1"></i> Descargar PDF
+                            </button>
+                            <button id="btnEditarRegistro" class="btn btn-warning btn-sm text-dark fw-bold" onclick="abrirModalEditar()">
+                                <i class="fa-solid fa-pen-to-square me-1"></i> Editar Registro
+                            </button>
+                            <button id="btnEliminarRegistro" class="btn btn-danger btn-sm" onclick="eliminarTrabajador()">
+                                <i class="fa-solid fa-trash-can me-1"></i> Eliminar Registro
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestañas de Información -->
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button">
+                        <i class="fa-solid fa-user me-2"></i>Datos Personales y Laborales
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="academic-tab" data-bs-toggle="tab" data-bs-target="#academic" type="button">
+                        <i class="fa-solid fa-graduation-cap me-2"></i>Perfil Profesional
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="medical-tab" data-bs-toggle="tab" data-bs-target="#medical" type="button">
+                        <i class="fa-solid fa-notes-medical me-2"></i>Antecedentes Médicos
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="events-tab" data-bs-toggle="tab" data-bs-target="#events" type="button">
+                        <i class="fa-solid fa-clock-rotate-left me-2"></i>Historial de Eventos
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="myTabContent">
+                
+                <!-- Pestaña 1: Personales y Laborales -->
+                <div class="tab-pane fade show active" id="personal">
+                    <h5 class="fw-bold mb-3 text-secondary">Información General</h5>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Fecha de Nacimiento</label>
+                            <p id="workerBirthdate" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Teléfono Contacto</label>
+                            <p id="workerPhone" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Correo Electrónico</label>
+                            <p id="workerEmail" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label text-muted">Dirección de Habitación</label>
+                            <p id="workerAddress" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted">Punto de Referencia</label>
+                            <p id="workerReference" class="fw-semibold">---</p>
+                        </div>
+                        
+                        <hr>
+                        <h5 class="fw-bold mb-3 text-secondary">Contacto de Emergencia</h5>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted">Nombre y Apellido</label>
+                            <p id="emergencyName" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted">Parentesco</label>
+                            <p id="emergencyKinship" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted">Teléfono Emergencia</label>
+                            <p id="emergencyPhone" class="fw-semibold">---</p>
+                        </div>
+
+                        <hr>
+                        <h5 class="fw-bold mb-3 text-secondary">Información Laboral</h5>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Código de Trabajador</label>
+                            <p id="workerCode" class="fw-semibold text-danger">---</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Fecha de Ingreso</label>
+                            <p id="workerHireDate" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Antigüedad (Servicio)</label>
+                            <p id="workerServiceTime" class="fw-semibold text-danger">---</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Condición Laboral</label>
+                            <p id="workerCondition" class="fw-semibold">---</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña 2: Perfil Profesional -->
+                <div class="tab-pane fade" id="academic">
+                    <h5 class="fw-bold mb-3 text-secondary">Nivel Académico y Formación</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Nivel de Instrucción</label>
+                            <p id="workerEducation" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Título / Profesión Principal</label>
+                            <p id="workerDegree" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Estudios Adicionales</label>
+                            <ul id="workerAdditionalDegrees" class="list-group"></ul>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Cursos Realizados</label>
+                            <ul id="workerCourses" class="list-group"></ul>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Certificaciones Obtenidas</label>
+                            <ul id="workerCertifications" class="list-group"></ul>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Reconocimientos Otorgados</label>
+                            <ul id="workerAwards" class="list-group"></ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña 3: Antecedentes Médicos -->
+                <div class="tab-pane fade" id="medical">
+                    <h5 class="fw-bold mb-3 text-secondary">Ficha Salud Ocupacional</h5>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Tipo de Sangre</label>
+                            <p id="workerBloodType" class="fw-semibold text-danger fs-5">---</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">¿Usa Lentes Correctivos?</label>
+                            <p id="workerUsesGlasses" class="fw-semibold text-primary">---</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Alergias (Medicamentos)</label>
+                            <p id="workerAllergiesMeds" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Alergias (Alimentos / Otros)</label>
+                            <p id="workerAllergiesFood" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Tratamiento para Enfermedades Crónicas</label>
+                            <p id="workerChronicTreatment" class="fw-semibold">---</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Condición de Discapacidad</label>
+                            <p id="workerDisability" class="fw-semibold">---</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña 4: Historial de Eventos -->
+                <div class="tab-pane fade" id="events">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-secondary mb-0">Historial de Eventos e Incidentes</h5>
+                        <button id="btnNuevoEvento" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoEvento">
+                            <i class="fa-solid fa-plus me-1"></i> Registrar Evento / Reposo
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo de Evento</th>
+                                    <th>Días Reposo</th>
+                                    <th>Descripción / Diagnóstico</th>
+                                    <th>Estatus Generado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="eventsTableBody">
+                                <tr><td colspan="5" class="text-center text-muted">Sin eventos registrados.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- MODAL DE INFORME INTELIGENTE SSST CON LOGO INSTITUCIONAL -->
+    <div class="modal fade" id="modalInformeInteligente" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-brain me-2"></i>Informe Inteligente de Gestión SSST</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    
+                    <!-- ÁREA ESPECÍFICA CAPTURADA PARA EL PDF -->
+                    <div id="informePdfContent" class="p-4 bg-white">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <img src="/static/img/logo_header.png" alt="Munchy Logo" class="report-header-logo">
+                                <div class="border-start ps-3 border-2 border-danger">
+                                    <h4 class="fw-bold text-dark mb-0">ALIMENTOS MUNCHY, C.A.</h4>
+                                    <h5 class="fw-bold text-danger mb-0">INFORME DE GESTIÓN DE LA COORDINACIÓN DE SSST</h5>
+                                    <small class="text-muted fw-semibold">Servicio de Seguridad y Salud en el Trabajo | Diagnóstico Ejecutivo</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-secondary p-2 fs-6" id="reportFechaGeneracion">Fecha: 26/08/2026</span>
+                            </div>
+                        </div>
+
+                        <!-- RESUMEN INTELIGENTE -->
+                        <div class="alert alert-light border border-danger rounded-3 p-3 mb-4">
+                            <h6 class="fw-bold text-danger mb-2"><i class="fa-solid fa-lightbulb me-2"></i>Resumen Ejecutivo Diagnóstico:</h6>
+                            <p id="resumenTextoInteligente" class="mb-0 text-dark" style="line-height: 1.6;">Generando análisis...</p>
+                        </div>
+
+                        <!-- GRÁFICOS DEL INFORME -->
+                        <div class="row g-4 mb-2">
+                            <div class="col-6">
+                                <div class="card p-3 border shadow-sm">
+                                    <h6 class="fw-bold text-secondary text-center mb-3" style="font-size: 0.9rem;">Distribución de Casos Médicos y Ausentismo</h6>
+                                    <div style="height: 220px;">
+                                        <canvas id="chartReporteSalud"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card p-3 border shadow-sm">
+                                    <h6 class="fw-bold text-secondary text-center mb-3" style="font-size: 0.9rem;">Días Sin Accidentes por Gerencia</h6>
+                                    <div style="height: 220px;">
+                                        <canvas id="chartReporteSeguridad"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-danger fw-bold" onclick="exportarInformePDFDirecto()"><i class="fa-solid fa-file-pdf me-1"></i> Exportar a PDF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL COMPLETO DE EDICIÓN -->
+    <div class="modal fade" id="modalEditarTrabajador" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-pen me-2"></i>Editar Expediente del Trabajador</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formEditarTrabajador" onsubmit="event.preventDefault(); guardarEdicionTrabajador();">
+                        <input type="hidden" id="edit_cedula">
+                        
+                        <ul class="nav nav-pills mb-3" id="editTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="edit-personal-tab" data-bs-toggle="pill" data-bs-target="#edit-personal" type="button"><i class="fa-solid fa-address-card me-1"></i> 1. Personales y Emergencia</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="edit-laboral-tab" data-bs-toggle="pill" data-bs-target="#edit-laboral" type="button"><i class="fa-solid fa-briefcase me-1"></i> 2. Laborales</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="edit-academic-tab" data-bs-toggle="pill" data-bs-target="#edit-academic" type="button"><i class="fa-solid fa-graduation-cap me-1"></i> 3. Perfil Profesional</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="edit-medical-tab" data-bs-toggle="pill" data-bs-target="#edit-medical" type="button"><i class="fa-solid fa-heart-pulse me-1"></i> 4. Salud Ocupacional</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content border p-3 rounded" id="editTabContent">
+                            
+                            <!-- SECCIÓN 1: Personales -->
+                            <div class="tab-pane fade show active" id="edit-personal">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Nombres *</label>
+                                        <input type="text" id="edit_first_name" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Apellidos *</label>
+                                        <input type="text" id="edit_last_name" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Fecha de Nacimiento *</label>
+                                        <input type="date" id="edit_birthdate" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Teléfono Contacto</label>
+                                        <input type="text" id="edit_phone" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Correo Electrónico *</label>
+                                        <input type="email" id="edit_email" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Actualizar Foto (Opcional)</label>
+                                        <input type="file" id="edit_photo_file" class="form-control" accept="image/png, image/jpeg, image/jpg">
+                                    </div>
+                                    <div class="col-md-8">
+                                        <label class="form-label fw-bold">Dirección de Habitación *</label>
+                                        <input type="text" id="edit_address" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Punto de Referencia *</label>
+                                        <input type="text" id="edit_address_reference" class="form-control" required>
+                                    </div>
+
+                                    <div class="col-12"><h6 class="section-header-modal"><i class="fa-solid fa-phone-volume me-1"></i>Contacto de Emergencia</h6></div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Nombre Emergencia *</label>
+                                        <input type="text" id="edit_emergency_name" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Parentesco *</label>
+                                        <input type="text" id="edit_emergency_kinship" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Teléfono Emergencia *</label>
+                                        <input type="text" id="edit_emergency_phone" class="form-control" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SECCIÓN 2: Laborales -->
+                            <div class="tab-pane fade" id="edit-laboral">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Código Trabajador *</label>
+                                        <input type="text" id="edit_worker_code" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Cargo *</label>
+                                        <input type="text" id="edit_position" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Departamento / Gerencia *</label>
+                                        <input type="text" id="edit_department" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Jefe Inmediato</label>
+                                        <input type="text" id="edit_supervisor" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Condición Laboral *</label>
+                                        <select id="edit_employment_type" class="form-select" required>
+                                            <option value="Fijo">Fijo</option>
+                                            <option value="Contratado">Contratado</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Fecha de Ingreso *</label>
+                                        <input type="date" id="edit_hire_date" class="form-control" onchange="calcularTiempoServicioEdicion()" required>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label fw-bold text-danger">Antigüedad Calculada</label>
+                                        <input type="text" id="edit_service_time" class="form-control bg-light" readonly>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SECCIÓN 3: Perfil Profesional -->
+                            <div class="tab-pane fade" id="edit-academic">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Nivel de Instrucción</label>
+                                        <select id="edit_education_level" class="form-select">
+                                            <option value="Bachiller">Bachiller</option>
+                                            <option value="TSU">Técnico Superior Universitario (TSU)</option>
+                                            <option value="Ingeniero / Licenciado">Ingeniero / Licenciado</option>
+                                            <option value="Postgrado / Maestría">Postgrado / Maestría</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Título Principal / Profesión</label>
+                                        <input type="text" id="edit_profession" class="form-control">
+                                    </div>
+
+                                    <!-- Carreras y Estudios Adicionales -->
+                                    <div class="col-12 mt-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="form-label fw-bold mb-0 text-primary"><i class="fa-solid fa-graduation-cap me-1"></i>Carreras y Estudios Adicionales</label>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarCampoEditEstudio()"><i class="fa-solid fa-plus me-1"></i>Agregar Campo</button>
+                                        </div>
+                                        <div id="editEstudiosContainer"></div>
+                                    </div>
+
+                                    <!-- Cursos Realizados -->
+                                    <div class="col-12 mt-2">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="form-label fw-bold mb-0 text-primary"><i class="fa-solid fa-book-open me-1"></i>Cursos Realizados</label>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarCampoEditCurso()"><i class="fa-solid fa-plus me-1"></i>Agregar Campo</button>
+                                        </div>
+                                        <div id="editCursosContainer"></div>
+                                    </div>
+
+                                    <!-- Certificaciones Obtenidas -->
+                                    <div class="col-md-6 mt-2">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="form-label fw-bold mb-0 text-primary"><i class="fa-solid fa-certificate me-1"></i>Certificaciones Obtenidas</label>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarCampoEditCertificacion()"><i class="fa-solid fa-plus me-1"></i>Agregar Campo</button>
+                                        </div>
+                                        <div id="editCertificacionesContainer"></div>
+                                    </div>
+
+                                    <!-- Reconocimientos Otorgados -->
+                                    <div class="col-md-6 mt-2">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="form-label fw-bold mb-0 text-primary"><i class="fa-solid fa-award me-1"></i>Reconocimientos Otorgados</label>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarCampoEditReconocimiento()"><i class="fa-solid fa-plus me-1"></i>Agregar Campo</button>
+                                        </div>
+                                        <div id="editReconocimientosContainer"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SECCIÓN 4: Salud Ocupacional -->
+                            <div class="tab-pane fade" id="edit-medical">
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">Tipo de Sangre</label>
+                                        <select id="edit_blood_type" class="form-select">
+                                            <option value="O+">O+</option>
+                                            <option value="O-">O-</option>
+                                            <option value="A+">A+</option>
+                                            <option value="A-">A-</option>
+                                            <option value="B+">B+</option>
+                                            <option value="B-">B-</option>
+                                            <option value="AB+">AB+</option>
+                                            <option value="AB-">AB-</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">¿Usa Lentes?</label>
+                                        <select id="edit_uses_glasses" class="form-select">
+                                            <option value="No">No</option>
+                                            <option value="Sí">Sí</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">Alergias (Medicamentos)</label>
+                                        <input type="text" id="edit_allergies_meds" class="form-control">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">Alergias (Alimentos / Otros)</label>
+                                        <input type="text" id="edit_allergies_food" class="form-control">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Tratamiento Enfermedades Crónicas</label>
+                                        <input type="text" id="edit_chronic_treatment" class="form-control">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Condición Discapacidad</label>
+                                        <input type="text" id="edit_disability_condition" class="form-control">
+                                    </div>
+
+                                    <div class="col-12 mt-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="form-label fw-bold mb-0 text-danger"><i class="fa-solid fa-notes-medical me-1"></i>Historial de Patologías</label>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="agregarCampoEditPatologia()"><i class="fa-solid fa-plus me-1"></i>Agregar Campo</button>
+                                        </div>
+                                        <div id="editPatologiasContainer"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-warning fw-bold px-4"><i class="fa-solid fa-floppy-disk me-1"></i> Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA REGISTRAR EVENTO O REPOSO MÉDICO -->
+    <div class="modal fade" id="modalNuevoEvento" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-notes-medical me-2"></i>Registrar Evento / Reposo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEvento" onsubmit="event.preventDefault(); guardarNuevoEvento();">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Fecha del Evento *</label>
+                            <input type="date" id="event_date" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tipo de Evento *</label>
+                            <select id="event_type" class="form-select" onchange="evaluarTipoEvento(this.value)" required>
+                                <option value="Consulta General">Consulta General / Ocupacional</option>
+                                <option value="Reposo Médico">Reposo Médico</option>
+                                <option value="Accidente Laboral">Accidente Laboral</option>
+                                <option value="Incidente">Incidente</option>
+                            </select>
+                        </div>
+                        
+                        <div id="reposoFieldsContainer" class="p-3 bg-light border rounded mb-3" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-danger">Días de Reposo Otorgados *</label>
+                                <input type="number" id="rest_days" class="form-control" min="1" placeholder="Ej. 3">
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active_reposo" checked>
+                                <label class="form-check-label fw-bold" for="is_active_reposo">Colocar trabajador EN REPOSO en tarjeta principal</label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Diagnóstico / Descripción *</label>
+                            <textarea id="event_description" class="form-control" rows="3" required></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-danger"><i class="fa-solid fa-floppy-disk me-1"></i> Guardar Evento</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/search.js"></script>
+    <script>
+        function exportarInformePDFDirecto() {
+            const elemento = document.getElementById('informePdfContent');
+            
+            const opciones = {
+                margin:       0.4,
+                filename:     'Informe_Gestion_SSST_Alimentos_Munchy.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opciones).from(elemento).output('bloburl').then(function(pdfUrl) {
+                window.open(pdfUrl, '_blank');
+            });
+        }
+    </script>
+</body>
+</html>

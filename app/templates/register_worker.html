@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MunchySSST - Registro de Trabajador</title>
+
+    <!-- CSS Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Iconos FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- SweetAlert2 para Notificaciones -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar-munchy { background-color: #ffffff; border-bottom: 3px solid #d9251d; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .header-logo { height: 45px; width: auto; object-fit: contain; }
+        .card-custom { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .section-header { border-bottom: 2px solid #d9251d; padding-bottom: 8px; color: #d9251d; font-weight: 700; margin-top: 20px; margin-bottom: 20px; }
+        .dynamic-item { background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar con Encabezado de 2 Líneas -->
+    <nav class="navbar navbar-expand-lg navbar-light navbar-munchy mb-4">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                <img src="/static/img/logo_header.png" alt="Munchy Logo" class="header-logo">
+                <div class="border-start ps-3 border-2 border-danger d-flex flex-column">
+                    <span class="fw-bold text-danger fs-6 lh-1">Servicio de Seguridad y Salud en el Trabajo</span>
+                    <small class="text-muted fw-semibold mt-1" style="font-size: 0.8rem;">Coordinación de SSST</small>
+                </div>
+            </a>
+            <div class="d-flex align-items-center">
+                <a href="/" class="btn btn-outline-danger btn-sm me-3"><i class="fa-solid fa-arrow-left me-1"></i> Volver al Buscador</a>
+                <span class="text-secondary fw-semibold me-3"><i class="fa-solid fa-user me-1 text-danger"></i> {{ current_user.username }} ({{ current_user.role }})</span>
+                <a href="/logout" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-right-from-bracket"></i> Salir</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mb-5">
+        <div class="row">
+            <div class="col-lg-10 mx-auto">
+                <div class="card card-custom p-4">
+                    <h4 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-user-plus text-danger me-2"></i>Nuevo Registro de Trabajador</h4>
+                    
+                    <form id="formRegistroCompleto" onsubmit="event.preventDefault(); guardarNuevoTrabajador();">
+                        
+                        <!-- 1. DATOS PERSONALES -->
+                        <h5 class="section-header"><i class="fa-solid fa-address-card me-2"></i>1. Datos Personales</h5>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Cédula de Identidad *</label>
+                                <input type="text" id="cedula" class="form-control" placeholder="Ej. 12345678" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Nombres *</label>
+                                <input type="text" id="first_name" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Apellidos *</label>
+                                <input type="text" id="last_name" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Fecha de Nacimiento *</label>
+                                <input type="date" id="birthdate" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Teléfono Contacto</label>
+                                <input type="text" id="phone" class="form-control" placeholder="Ej. 0414-1234567">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Correo Electrónico *</label>
+                                <input type="email" id="email" class="form-control" required placeholder="correo@munchy.com">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold">Dirección de Habitación *</label>
+                                <input type="text" id="address" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Punto de Referencia *</label>
+                                <input type="text" id="address_reference" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Foto del Trabajador (Opcional)</label>
+                                <input type="file" id="photo_file" class="form-control" accept="image/png, image/jpeg, image/jpg">
+                            </div>
+                        </div>
+
+                        <!-- CONTACTO DE EMERGENCIA -->
+                        <h6 class="fw-bold text-secondary mt-4 mb-3 border-bottom pb-1"><i class="fa-solid fa-phone-volume me-2"></i>Contacto de Emergencia</h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Nombre Completo *</label>
+                                <input type="text" id="emergency_name" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Parentesco *</label>
+                                <input type="text" id="emergency_kinship" class="form-control" placeholder="Ej. Esposa, Madre" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Teléfono de Emergencia *</label>
+                                <input type="text" id="emergency_phone" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <!-- 2. DATOS LABORALES -->
+                        <h5 class="section-header"><i class="fa-solid fa-briefcase me-2"></i>2. Información Laboral</h5>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Código Trabajador *</label>
+                                <input type="text" id="worker_code" class="form-control" placeholder="Ej. M-1045" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Cargo *</label>
+                                <input type="text" id="position" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Departamento *</label>
+                                <input type="text" id="department" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Jefe Inmediato</label>
+                                <input type="text" id="supervisor" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Condición Laboral *</label>
+                                <select id="employment_type" class="form-select" required>
+                                    <option value="Fijo">Fijo</option>
+                                    <option value="Contratado">Contratado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Fecha de Ingreso *</label>
+                                <input type="date" id="hire_date" class="form-control" onchange="calcularTiempoServicio()" required>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold text-danger">Antigüedad (Servicio Calculado)</label>
+                                <input type="text" id="service_time" class="form-control bg-light" readonly placeholder="Se calcula automáticamente">
+                            </div>
+                        </div>
+
+                        <!-- 3. PERFIL PROFESIONAL -->
+                        <h5 class="section-header"><i class="fa-solid fa-graduation-cap me-2"></i>3. Perfil Profesional y Formación</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Nivel de Instrucción *</label>
+                                <select id="education_level" class="form-select" required>
+                                    <option value="Bachiller">Bachiller</option>
+                                    <option value="TSU">Técnico Superior Universitario (TSU)</option>
+                                    <option value="Ingeniero / Licenciado">Ingeniero / Licenciado</option>
+                                    <option value="Postgrado / Maestría">Postgrado / Maestría</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Título Principal / Profesión</label>
+                                <input type="text" id="profession" class="form-control">
+                            </div>
+
+                            <!-- Dinámicos Profesionales -->
+                            <div class="col-12 mt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-bold mb-0 text-primary">Estudios / Carreras Adicionales</label>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarCampoEstudio()"><i class="fa-solid fa-plus me-1"></i>Agregar</button>
+                                </div>
+                                <div id="estudiosContainer"></div>
+                            </div>
+
+                            <div class="col-12 mt-2">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-bold mb-0 text-primary">Cursos Realizados</label>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarCampoCurso()"><i class="fa-solid fa-plus me-1"></i>Agregar</button>
+                                </div>
+                                <div id="cursosContainer"></div>
+                            </div>
+
+                            <div class="col-md-6 mt-2">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-bold mb-0 text-primary">Certificaciones Obtenidas</label>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarCampoCertificacion()"><i class="fa-solid fa-plus me-1"></i>Agregar</button>
+                                </div>
+                                <div id="certificacionesContainer"></div>
+                            </div>
+
+                            <div class="col-md-6 mt-2">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-bold mb-0 text-primary">Reconocimientos Otorgados</label>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarCampoReconocimiento()"><i class="fa-solid fa-plus me-1"></i>Agregar</button>
+                                </div>
+                                <div id="reconocimientosContainer"></div>
+                            </div>
+                        </div>
+
+                        <!-- 4. ANTECEDENTES MÉDICOS Y SALUD -->
+                        <h5 class="section-header"><i class="fa-solid fa-notes-medical me-2"></i>4. Ficha Salud Ocupacional</h5>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Tipo de Sangre *</label>
+                                <select id="blood_type" class="form-select" required>
+                                    <option value="O+">O+</option>
+                                    <option value="O-">O-</option>
+                                    <option value="A+">A+</option>
+                                    <option value="A-">A-</option>
+                                    <option value="B+">B+</option>
+                                    <option value="B-">B-</option>
+                                    <option value="AB+">AB+</option>
+                                    <option value="AB-">AB-</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">¿Usa Lentes Correctivos? *</label>
+                                <select id="uses_glasses" class="form-select" required>
+                                    <option value="No">No</option>
+                                    <option value="Sí">Sí</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Alergias (Medicamentos)</label>
+                                <input type="text" id="allergies_meds" class="form-control" placeholder="Ninguna">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Alergias (Alimentos / Otros)</label>
+                                <input type="text" id="allergies_food" class="form-control" placeholder="Ninguna">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tratamiento Enfermedades Crónicas</label>
+                                <input type="text" id="chronic_treatment" class="form-control" placeholder="Ninguno">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Condición de Discapacidad</label>
+                                <input type="text" id="disability_condition" class="form-control" placeholder="Ninguna">
+                            </div>
+
+                            <!-- Patologías Dinámicas -->
+                            <div class="col-12 mt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-bold mb-0 text-danger">Historial de Patologías</label>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="agregarCampoPatologia()"><i class="fa-solid fa-plus me-1"></i>Agregar Patología</button>
+                                </div>
+                                <div id="patologiasContainer"></div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 mt-5">
+                            <a href="/" class="btn btn-secondary px-4">Cancelar</a>
+                            <button type="submit" class="btn btn-danger fw-bold px-5"><i class="fa-solid fa-floppy-disk me-1"></i> Guardar Trabajador</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de Manejo de Registro -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function calcularTiempoServicio() {
+            const inputFecha = document.getElementById('hire_date').value;
+            const outputCampo = document.getElementById('service_time');
+
+            if (!inputFecha) { outputCampo.value = ''; return; }
+
+            const fechaIngreso = new Date(inputFecha);
+            const hoy = new Date();
+
+            let años = hoy.getFullYear() - fechaIngreso.getFullYear();
+            let meses = hoy.getMonth() - fechaIngreso.getMonth();
+            let dias = hoy.getDate() - fechaIngreso.getDate();
+
+            if (dias < 0) {
+                meses--;
+                const ultimoDiaMesAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), 0).getDate();
+                dias += ultimoDiaMesAnterior;
+            }
+
+            if (meses < 0) {
+                años--;
+                meses += 12;
+            }
+
+            outputCampo.value = `${años} Años, ${meses} Meses y ${dias} Días`;
+        }
+
+        function agregarCampoEstudio() {
+            const container = document.getElementById('estudiosContainer');
+            const div = document.createElement('div');
+            div.className = 'dynamic-item d-flex gap-2 align-items-center';
+            div.innerHTML = `
+                <input type="text" class="form-control estudio-item" placeholder="Estudio o carrera adicional">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+            `;
+            container.appendChild(div);
+        }
+
+        function agregarCampoCurso() {
+            const container = document.getElementById('cursosContainer');
+            const div = document.createElement('div');
+            div.className = 'dynamic-item d-flex gap-2 align-items-center';
+            div.innerHTML = `
+                <input type="text" class="form-control curso-item" placeholder="Nombre del curso realizado">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+            `;
+            container.appendChild(div);
+        }
+
+        function agregarCampoCertificacion() {
+            const container = document.getElementById('certificacionesContainer');
+            const div = document.createElement('div');
+            div.className = 'dynamic-item d-flex gap-2 align-items-center';
+            div.innerHTML = `
+                <input type="text" class="form-control certificacion-item" placeholder="Certificación obtenida">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+            `;
+            container.appendChild(div);
+        }
+
+        function agregarCampoReconocimiento() {
+            const container = document.getElementById('reconocimientosContainer');
+            const div = document.createElement('div');
+            div.className = 'dynamic-item d-flex gap-2 align-items-center';
+            div.innerHTML = `
+                <input type="text" class="form-control reconocimiento-item" placeholder="Reconocimiento otorgado">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+            `;
+            container.appendChild(div);
+        }
+
+        function agregarCampoPatologia() {
+            const container = document.getElementById('patologiasContainer');
+            const div = document.createElement('div');
+            div.className = 'dynamic-item';
+            div.innerHTML = `
+                <div class="row g-2">
+                    <div class="col-md-5"><input type="text" class="form-control patologia-nombre" placeholder="Patología / Enfermedad"></div>
+                    <div class="col-md-6"><input type="text" class="form-control patologia-tratamiento" placeholder="Tratamiento prescrito"></div>
+                    <div class="col-md-1 text-end"><button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="this.closest('.dynamic-item').remove()"><i class="fa-solid fa-trash"></i></button></div>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        function recolectarValoresClase(nombreClase) {
+            const elementos = document.querySelectorAll(`.${nombreClase}`);
+            const valores = [];
+            elementos.forEach(el => { if (el.value.trim() !== '') valores.push(el.value.trim()); });
+            return JSON.stringify(valores);
+        }
+
+        function recolectarPatologiasJSON() {
+            const items = document.querySelectorAll('#patologiasContainer .dynamic-item');
+            const patologias = [];
+            items.forEach(item => {
+                const nombre = item.querySelector('.patologia-nombre').value.trim();
+                const tratamiento = item.querySelector('.patologia-tratamiento').value.trim();
+                if (nombre !== '') patologias.push({ nombre, tratamiento });
+            });
+            return JSON.stringify(patologias);
+        }
+
+        async function guardarNuevoTrabajador() {
+            const formData = new FormData();
+
+            formData.append('cedula', document.getElementById('cedula').value.trim());
+            formData.append('first_name', document.getElementById('first_name').value.trim());
+            formData.append('last_name', document.getElementById('last_name').value.trim());
+            formData.append('birthdate', document.getElementById('birthdate').value);
+            formData.append('phone', document.getElementById('phone').value.trim());
+            formData.append('email', document.getElementById('email').value.trim());
+            formData.append('address', document.getElementById('address').value.trim());
+            formData.append('address_reference', document.getElementById('address_reference').value.trim());
+
+            formData.append('emergency_name', document.getElementById('emergency_name').value.trim());
+            formData.append('emergency_kinship', document.getElementById('emergency_kinship').value.trim());
+            formData.append('emergency_phone', document.getElementById('emergency_phone').value.trim());
+
+            formData.append('worker_code', document.getElementById('worker_code').value.trim());
+            formData.append('position', document.getElementById('position').value.trim());
+            formData.append('department', document.getElementById('department').value.trim());
+            formData.append('supervisor', document.getElementById('supervisor').value.trim());
+            formData.append('employment_type', document.getElementById('employment_type').value);
+            formData.append('hire_date', document.getElementById('hire_date').value);
+            formData.append('service_time', document.getElementById('service_time').value);
+
+            formData.append('education_level', document.getElementById('education_level').value);
+            formData.append('profession', document.getElementById('profession').value.trim());
+            formData.append('additional_degrees_json', recolectarValoresClase('estudio-item'));
+            formData.append('courses_json', recolectarValoresClase('curso-item'));
+            formData.append('certifications_json', recolectarValoresClase('certificacion-item'));
+            formData.append('awards_json', recolectarValoresClase('reconocimiento-item'));
+
+            formData.append('blood_type', document.getElementById('blood_type').value);
+            formData.append('uses_glasses', document.getElementById('uses_glasses').value);
+            formData.append('allergies_meds', document.getElementById('allergies_meds').value.trim());
+            formData.append('allergies_food', document.getElementById('allergies_food').value.trim());
+            formData.append('chronic_treatment', document.getElementById('chronic_treatment').value.trim());
+            formData.append('disability_condition', document.getElementById('disability_condition').value.trim());
+            formData.append('pathologies_json', recolectarPatologiasJSON());
+
+            const photoFile = document.getElementById('photo_file').files[0];
+            if (photoFile) {
+                formData.append('photo_file', photoFile);
+            }
+
+            try {
+                const response = await fetch('/api/workers/create', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    Swal.fire({
+                        title: 'Trabajador Registrado',
+                        text: 'El expediente ha sido guardado exitosamente.',
+                        icon: 'success',
+                        confirmButtonText: 'Aceptar',
+                        confirmButtonColor: '#d9251d'
+                    }).then(() => {
+                        window.location.href = '/';
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'No se pudo guardar',
+                        text: result.detail || 'Ocurrió un error al registrar el trabajador.',
+                        icon: 'error',
+                        confirmButtonColor: '#d9251d'
+                    });
+                }
+            } catch (e) {
+                Swal.fire({
+                    title: 'Error de Conexión',
+                    text: 'Inconveniente de red con el servidor.',
+                    icon: 'error',
+                    confirmButtonColor: '#d9251d'
+                });
+            }
+        }
+    </script>
+</body>
+</html>
