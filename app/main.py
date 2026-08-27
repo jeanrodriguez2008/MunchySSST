@@ -301,7 +301,7 @@ def register_page(request: Request):
     if not user:
         return RedirectResponse(url="/login")
     
-    # Permitir acceso si es Webmaster o Coordinador
+    # Permitir acceso si es Webmaster o Coordinador explícitamente
     if user.get("role") not in ["Webmaster", "Coordinador"]:
         return RedirectResponse(url="/")
         
