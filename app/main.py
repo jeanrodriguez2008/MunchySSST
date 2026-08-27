@@ -21,12 +21,15 @@ import uvicorn
 
 app = FastAPI(title="MunchySSST Local")
 
-os.makedirs("app/static/uploads", exist_ok=True)
-os.makedirs("app/static/img", exist_ok=True)
-os.makedirs("app/static/exports", exist_ok=True)
+# Asegurar creación de directorios en el servidor
+BASE_DIR = Path(__file__).resolve().parent
+os.makedirs(os.path.join(BASE_DIR, "static/uploads"), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "static/img"), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "static/exports"), exist_ok=True)
 
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
+# Montar estáticos y plantillas usando rutas absolutas para Render
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 class EventSchema(BaseModel):
     fecha: Optional[str] = ""
@@ -125,7 +128,7 @@ def calcular_dias_sin_reposo(worker: dict) -> int:
 
 @app.get("/login")
 def login_view(request: Request):
-    return templates.TemplateResponse(request=request, name="login.html")
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/api/auth/login")
 def login_api(username: str = Form(...), password: str = Form(...), response: Response = None):
@@ -163,7 +166,6 @@ def register_user(
     }
     return {"message": "Usuario registrado exitosamente."}
 
-# NUEVO ENDPOINT: Consultar la pregunta de seguridad del usuario
 @app.get("/api/auth/get-security-question/{username}")
 def get_security_question(username: str):
     uname = username.lower().strip()
@@ -194,21 +196,21 @@ def home(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse(request=request, name="worker_profile.html", context={"current_user": user})
+    return templates.TemplateResponse("worker_profile.html", {"request": request, "current_user": user})
 
 @app.get("/register")
 def register_page(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse(request=request, name="register_worker.html", context={"current_user": user})
+    return templates.TemplateResponse("register_worker.html", {"request": request, "current_user": user})
 
 @app.get("/users")
 def users_management_page(request: Request):
     user = get_current_user(request)
     if not user or user["role"] not in ["Webmaster", "Coordinador"]:
         return RedirectResponse(url="/")
-    return templates.TemplateResponse(request=request, name="user_management.html", context={"current_user": user})
+    return templates.TemplateResponse("user_management.html", {"request": request, "current_user": user})
 
 # --- GESTIÓN DE USUARIOS Y ROLES ---
 
@@ -385,7 +387,7 @@ async def create_worker(
     if photo_file and photo_file.filename:
         file_ext = Path(photo_file.filename).suffix
         filename = f"photo_{cedula}{file_ext}"
-        filepath = os.path.join("app/static/uploads", filename)
+        filepath = os.path.join(BASE_DIR, "static/uploads", filename)
         with open(filepath, "wb") as buffer:
             shutil.copyfileobj(photo_file.file, buffer)
         photo_url = f"/static/uploads/{filename}"
@@ -513,7 +515,7 @@ async def update_worker(
     if photo_file and photo_file.filename:
         file_ext = Path(photo_file.filename).suffix
         filename = f"photo_{cedula}{file_ext}"
-        filepath = os.path.join("app/static/uploads", filename)
+        filepath = os.path.join(BASE_DIR, "static/uploads", filename)
         with open(filepath, "wb") as buffer:
             shutil.copyfileobj(photo_file.file, buffer)
         worker["photo_url"] = f"/static/uploads/{filename}"
@@ -574,7 +576,7 @@ def export_excel():
         })
 
     df = pd.DataFrame(records)
-    export_path = "app/static/exports/Listado_Trabajadores_MunchySSST.xlsx"
+    export_path = os.path.join(BASE_DIR, "static/exports/Listado_Trabajadores_MunchySSST.xlsx")
     df.to_excel(export_path, index=False)
 
     return FileResponse(
@@ -590,7 +592,7 @@ def export_pdf(cedula: str):
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
 
     pdf_filename = f"Ficha_Trabajador_{cedula}.pdf"
-    pdf_path = f"app/static/exports/{pdf_filename}"
+    pdf_path = os.path.join(BASE_DIR, f"static/exports/{pdf_filename}")
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
     c.setFont("Helvetica-Bold", 16)
