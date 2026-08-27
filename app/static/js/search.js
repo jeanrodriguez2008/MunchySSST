@@ -4,6 +4,14 @@ let chartInstance = null;
 let chartReporteSaludInstance = null;
 let chartReporteSeguridadInstance = null;
 
+// Función auxiliar para formatear números con punto (.) como separador de miles
+function formatearNumeroPuntos(numero) {
+    if (numero === null || numero === undefined || numero === '') return '0';
+    const numLimpio = parseInt(numero.toString().replace(/\D/g, ''), 10);
+    if (isNaN(numLimpio)) return numero;
+    return numLimpio.toLocaleString('de-DE');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     cargarDashboardGlobal();
     aplicarPermisosRBAC();
@@ -24,7 +32,7 @@ async function cargarDashboardGlobal() {
         if (!response.ok) return;
         const stats = await response.json();
 
-        document.getElementById('dashDiasEmpresa').textContent = `${stats.dias_sin_accidentes_empresa || 0} Días`;
+        document.getElementById('dashDiasEmpresa').textContent = `${formatearNumeroPuntos(stats.dias_sin_accidentes_empresa || 0)} Días`;
         document.getElementById('dashReposo').textContent = stats.total_reposo || 0;
         document.getElementById('dashLentes').textContent = stats.total_lentes || 0;
         document.getElementById('dashDiscapacidad').textContent = stats.total_discapacidad || 0;
@@ -50,7 +58,7 @@ function renderizarTablaGerencias(gerencias) {
         tbody.innerHTML += `
             <tr>
                 <td class="fw-semibold"><i class="fa-solid fa-building me-2 text-danger"></i>${g.gerencia}</td>
-                <td class="text-end fw-bold text-success"><span class="badge bg-success">${g.dias_sin_accidentes} Días</span></td>
+                <td class="text-end fw-bold text-success"><span class="badge bg-success">${formatearNumeroPuntos(g.dias_sin_accidentes)} Días</span></td>
             </tr>
         `;
     });
@@ -93,7 +101,7 @@ async function generarInformeInteligente() {
         const hoy = new Date();
         document.getElementById('reportFechaGeneracion').textContent = `Fecha: ${hoy.getDate().toString().padStart(2, '0')}/${(hoy.getMonth()+1).toString().padStart(2, '0')}/${hoy.getFullYear()}`;
 
-        let analisisText = `En el marco del **Servicio de Seguridad y Salud en el Trabajo**, la empresa mantiene un récord global óptimo de **${stats.dias_sin_accidentes_empresa} días consecutivos sin accidentes laborales**. `;
+        let analisisText = `En el marco del **Servicio de Seguridad y Salud en el Trabajo**, la empresa mantiene un récord global óptimo de **${formatearNumeroPuntos(stats.dias_sin_accidentes_empresa)} días consecutivos sin accidentes laborales**. `;
         
         if (stats.total_reposo === 0) {
             analisisText += `Actualmente **no existen trabajadores en reposo médico**, lo que representa una tasa de ausentismo del 0.0%. `;
@@ -223,7 +231,7 @@ async function buscarTrabajador() {
         
         if (!response.ok) {
             if (response.status === 404) {
-                mostrarAlerta(`No se encontró ningún trabajador con la cédula <strong>${cedula}</strong>.`, 'danger');
+                mostrarAlerta(`No se encontró ningún trabajador con la cédula <strong>V-${formatearNumeroPuntos(cedula)}</strong>.`, 'danger');
             } else {
                 mostrarAlerta('Error en el servidor al consultar los datos.', 'danger');
             }
@@ -247,12 +255,16 @@ function renderizarDatosTrabajador(data) {
     document.getElementById('workerPhoto').src = data.photo_url || '/static/uploads/default_avatar.png';
     document.getElementById('workerFullName').textContent = `${data.first_name} ${data.last_name}`;
     document.getElementById('workerCodeBadge').textContent = data.worker_code || 'SIN CÓDIGO';
-    document.getElementById('workerCedula').textContent = `C.I.: V-${data.cedula}`;
+    
+    // Cédula formateada con separador de miles por punto (.)
+    document.getElementById('workerCedula').textContent = `C.I.: V-${formatearNumeroPuntos(data.cedula)}`;
+    
     document.getElementById('workerCargo').textContent = data.position || 'N/A';
     document.getElementById('workerDept').textContent = data.department || 'N/A';
     document.getElementById('workerJefe').textContent = data.supervisor || 'N/A';
 
-    document.getElementById('workerDaysWithoutRest').textContent = `${data.days_without_rest || 0} Días`;
+    // Récord de días sin reposo formateado con separador de miles por punto (.)
+    document.getElementById('workerDaysWithoutRest').textContent = `${formatearNumeroPuntos(data.days_without_rest || 0)} Días`;
 
     const statusBadge = document.getElementById('workerStatusBadge');
     const reposoContainer = document.getElementById('reposoDetailsContainer');
@@ -261,7 +273,7 @@ function renderizarDatosTrabajador(data) {
         statusBadge.className = 'badge bg-warning text-dark badge-status';
         statusBadge.innerHTML = '<i class="fa-solid fa-bed-pulse me-1"></i>EN REPOSO';
         
-        document.getElementById('reposoDaysText').textContent = `EN REPOSO MÉDICO (${data.leave_days || 0} DÍAS)`;
+        document.getElementById('reposoDaysText').textContent = `EN REPOSO MÉDICO (${formatearNumeroPuntos(data.leave_days || 0)} DÍAS)`;
         document.getElementById('reposoCausaText').textContent = `Diagnóstico: ${data.leave_reason || 'No especificado'}`;
         reposoContainer.style.display = 'block';
     } else {
@@ -311,7 +323,7 @@ function renderizarDatosTrabajador(data) {
                 <tr>
                     <td>${formatearFecha(ev.fecha)}</td>
                     <td><span class="badge ${ev.tipo === 'Reposo Médico' ? 'bg-warning text-dark' : 'bg-danger'}">${ev.tipo || 'Evento'}</span></td>
-                    <td>${ev.rest_days ? ev.rest_days + ' Días' : 'N/A'}</td>
+                    <td>${ev.rest_days ? formatearNumeroPuntos(ev.rest_days) + ' Días' : 'N/A'}</td>
                     <td>${ev.descripcion}</td>
                     <td><span class="badge ${ev.is_reposo ? 'bg-warning text-dark' : 'bg-success'}">${ev.is_reposo ? 'En Reposo' : 'Activo'}</span></td>
                 </tr>
@@ -654,7 +666,7 @@ async function guardarNuevoEvento() {
 async function eliminarTrabajador() {
     if (!cedulaActualConsulta) return;
 
-    if (!confirm(`¿Está totalmente seguro de eliminar todo el expediente del trabajador C.I. V-${cedulaActualConsulta}?`)) return;
+    if (!confirm(`¿Está totalmente seguro de eliminar todo el expediente del trabajador C.I. V-${formatearNumeroPuntos(cedulaActualConsulta)}?`)) return;
 
     try {
         const response = await fetch(`/api/workers/delete/${cedulaActualConsulta}`, {
