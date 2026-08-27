@@ -49,48 +49,8 @@ MOCK_USERS: Dict[str, Any] = {
     }
 }
 
-MOCK_WORKERS: Dict[str, Any] = {
-    "12345678": {
-        "cedula": "12345678",
-        "worker_code": "M-1045",
-        "first_name": "Jean",
-        "last_name": "González",
-        "photo_url": "/static/uploads/default_avatar.png",
-        "position": "Coordinador de Almacenes",
-        "department": "Logística y Almacén",
-        "supervisor": "Gerente de Operaciones",
-        "employment_type": "Fijo",
-        "birthdate": "1978-04-26",
-        "phone": "0414-1234567",
-        "email": "jgonzalez@munchy.com",
-        "address": "Maracay, Edo. Aragua",
-        "address_reference": "Cerca del centro comercial",
-        "emergency_contact": {
-            "name": "Bárbara González",
-            "kinship": "Hermana",
-            "phone": "0412-9876543"
-        },
-        "hire_date": "2015-03-15",
-        "service_time": "11 Años, 5 Meses y 11 Días",
-        "education_level": "Ingeniero / Licenciado",
-        "profession": "Ingeniero Electrónico",
-        "additional_degrees": ["TSU en Instrumentación Industrial"],
-        "courses": ["Manejo de Inventarios Alimentos Munchy"],
-        "certifications": ["Certificación de Seguridad Ocupacional"],
-        "awards": ["Reconocimiento al Trabajo"],
-        "blood_type": "O+",
-        "uses_glasses": "No",
-        "allergies_meds": "Penicilina",
-        "allergies_food": "Ninguna",
-        "chronic_treatment": "Ninguno",
-        "disability_condition": "Ninguna",
-        "pathologies": [{"nombre": "Hipertensión Leve", "tratamiento": "Control dietético"}],
-        "is_on_leave": False,
-        "leave_days": 0,
-        "leave_reason": "",
-        "medical_events": [{"fecha": "2026-02-10", "tipo": "Consulta General", "descripcion": "Evaluación ocupacional. Apto.", "rest_days": 0, "is_reposo": False}]
-    }
-}
+# Diccionario inicializado vacío para evitar que reaparezcan registros por defecto
+MOCK_WORKERS: Dict[str, Any] = {}
 
 def get_current_user(request: Request):
     username = request.cookies.get("session_user")
@@ -268,6 +228,19 @@ def delete_user(username: str, request: Request):
 
 @app.get("/api/dashboard/stats")
 def get_dashboard_stats():
+    # Si la lista de trabajadores está vacía, retornar 0 en todo y listas vacías para gráficos
+    if not MOCK_WORKERS:
+        return {
+            "total_trabajadores": 0,
+            "total_reposo": 0,
+            "total_lentes": 0,
+            "total_discapacidad": 0,
+            "total_cronicas": 0,
+            "dias_sin_accidentes_empresa": 0,
+            "gerencias_stats": [],
+            "top_cronicas": []
+        }
+
     total_trabajadores = len(MOCK_WORKERS)
     total_reposo = sum(1 for w in MOCK_WORKERS.values() if w.get("is_on_leave"))
     total_lentes = sum(1 for w in MOCK_WORKERS.values() if w.get("uses_glasses") == "Sí")
@@ -300,7 +273,7 @@ def get_dashboard_stats():
     if fechas_accidentes_empresa:
         dias_sin_accidentes_empresa = (hoy - max(fechas_accidentes_empresa)).days
     else:
-        dias_sin_accidentes_empresa = 365
+        dias_sin_accidentes_empresa = 0
 
     stats_gerencias = []
     for dept in sorted(departamentos_existentes):
@@ -308,7 +281,7 @@ def get_dashboard_stats():
         if fechas_dept:
             dias_dept = (hoy - max(fechas_dept)).days
         else:
-            dias_dept = 365
+            dias_dept = 0
 
         stats_gerencias.append({
             "gerencia": dept,
