@@ -1,21 +1,21 @@
 {
-  "name": "MunchySSST - Seguridad e Higiene Industrial",
   "short_name": "MunchySSST",
-  "description": "Sistema de Gestión de Seguridad, Salud y Seguridad en el Trabajo",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#d9251d",
+  "name": "MunchySSST - Salud y Seguridad en el Trabajo",
   "icons": [
     {
-      "src": "/static/img/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "src": "/static/img/logo_header.png",
+      "type": "image/png",
+      "sizes": "192x192"
     },
     {
-      "src": "/static/img/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/static/img/logo_header.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
-  ]
+  ],
+  "start_url": "/login",
+  "background_color": "#ffffff",
+  "theme_color": "#d9251d",
+  "display": "standalone",
+  "orientation": "portrait"
 }
