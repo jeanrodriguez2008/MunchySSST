@@ -46,7 +46,7 @@ class UserModel(Base):
 class WorkerModel(Base):
     __tablename__ = "workers"
     cedula = Column(String, primary_key=True, index=True)
-    data = Column(Text, nullable=False)  # Almacena el expediente completo en formato JSON
+    data = Column(Text, nullable=False)
 
 # Crear tablas en Neon Tech si no existen
 Base.metadata.create_all(bind=engine)
@@ -264,9 +264,14 @@ def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
             except ValueError:
                 pass
     
-    fecha_base = max(fechas_rutinarios) if fechas_rutinarios else (
-        datetime.strptime(worker["hire_date"], "%Y-%m-%d").date() if worker.get("hire_date") else None
-    )
+    fecha_base = None
+    if fechas_rutinarios:
+        fecha_base = max(fechas_rutinarios)
+    elif worker.get("hire_date"):
+        try:
+            fecha_base = datetime.strptime(worker["hire_date"], "%Y-%m-%d").date()
+        except ValueError:
+            fecha_base = None
 
     if fecha_base:
         try:
