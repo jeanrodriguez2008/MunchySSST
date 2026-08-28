@@ -8,7 +8,7 @@ from collections import Counter
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile, Response, Depends, status
+from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile, Response, status
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -18,6 +18,34 @@ import pandas as pd
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import uvicorn
+# --- CONFIGURACIÓN DE BASE DE DATOS NEON TECH (SQLAlchemy) ---
+from sqlalchemy import create_engine, Column, String, Boolean, Integer, Text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+
+# REEMPLAZA ESTA CADENA CON TU URL COMPLETA DE NEON TECH:
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://neondb_owner:npg_ByJer8w4NvVG@ep-billowing-bar-ayvfnsgj-pooler.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# Modelos SQLAlchemy
+class UserModel(Base):
+    __tablename__ = "users"
+    username = Column(String, primary_key=True, index=True)
+    password = Column(String, nullable=False)
+    role = Column(String, default="Analista")
+    security_question = Column(String, nullable=True)
+    security_answer = Column(String, nullable=True)
+
+class WorkerModel(Base):
+    __tablename__ = "workers"
+    cedula = Column(String, primary_key=True, index=True)
+    data = Column(Text, nullable=False)  # Almacena el expediente completo en formato JSON
+
+# Crear tablas en Neon Tech si no existen
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="MunchySSST Local")
 
@@ -29,6 +57,32 @@ os.makedirs(BASE_DIR / "static/exports", exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+# Función de dependencia para obtener la sesión de BD
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Crear usuario Webmaster inicial si la base de datos está vacía
+def inicializar_webmaster():
+    db = SessionLocal()
+    webmaster = db.query(UserModel).filter(UserModel.username == "webmaster").first()
+    if not webmaster:
+        webmaster = UserModel(
+            username="webmaster",
+            password="web123456",
+            role="Webmaster",
+            security_question="¿Nombre de tu primera mascota?",
+            security_answer="purro"
+        )
+        db.add(webmaster)
+        db.commit()
+    db.close()
+
+inicializar_webmaster()
 
 class EventSchema(BaseModel):
     fecha: Optional[str] = ""
@@ -50,27 +104,24 @@ class RiskSchema(BaseModel):
 
 class MedicalExamSchema(BaseModel):
     fecha: str
-    tipo_examen: str  # Prevacacional, Postvacacional, Rutinario Anual
+    tipo_examen: str
     resultado: Optional[str] = "Apto"
     observaciones: Optional[str] = ""
 
-MOCK_USERS: Dict[str, Any] = {
-    "webmaster": {
-        "username": "webmaster",
-        "password": "web123456",
-        "role": "Webmaster",
-        "security_question": "¿Nombre de tu primera mascota?",
-        "security_answer": "purro"
-    }
-}
-
-MOCK_WORKERS: Dict[str, Any] = {}
-
-def get_current_user(request: Request):
+def get_current_user(request: Request, db: Session):
     username = request.cookies.get("session_user")
-    if not username or username not in MOCK_USERS:
+    if not username:
         return None
-    return MOCK_USERS[username]
+    user = db.query(UserModel).filter(UserModel.username == username).first()
+    if not user:
+        return None
+    return {
+        "username": user.username,
+        "password": user.password,
+        "role": user.role,
+        "security_question": user.security_question,
+        "security_answer": user.security_answer
+    }
 
 def calcular_dias_sin_reposo(worker: dict) -> int:
     if worker.get("is_on_leave"):
@@ -117,10 +168,21 @@ def evaluar_estatus_trabajador(worker: dict) -> str:
             
     return "ACTIVO"
 
-def obtener_alertas_contrato() -> List[str]:
+def obtener_workers_db(db: Session) -> Dict[str, dict]:
+    records = db.query(WorkerModel).all()
+    res = {}
+    for r in records:
+        try:
+            res[r.cedula] = json.loads(r.data)
+        except Exception:
+            pass
+    return res
+
+def obtener_alertas_contrato(db: Session) -> List[str]:
     alertas = []
     hoy = datetime.now().date()
-    for w in MOCK_WORKERS.values():
+    workers = obtener_workers_db(db)
+    for w in workers.values():
         if w.get("employment_type") == "Contratado" and w.get("contract_end_date"):
             try:
                 dt_fin = datetime.strptime(w["contract_end_date"], "%Y-%m-%d").date()
@@ -144,16 +206,13 @@ def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
     dept = worker.get("department", "N/A")
     examenes_realizados = worker.get("medical_exams", [])
 
-    # 1. Alertas Prevacacionales y Postvacacionales
     for vac in worker.get("vacations", []):
         try:
             f_inicio = datetime.strptime(vac["fecha_inicio"], "%Y-%m-%d").date()
             f_reintegro = datetime.strptime(vac["fecha_reintegro"], "%Y-%m-%d").date()
 
-            # Prevacacional: Alerta entre 15 y 1 días antes de salir de vacaciones
             dias_para_vac = (f_inicio - hoy).days
             if 0 <= dias_para_vac <= 15:
-                # Verificar si ya tiene examen prevacacional reciente
                 tiene_examen = any(
                     e.get("tipo_examen") == "Prevacacional" and
                     abs((datetime.strptime(e["fecha"], "%Y-%m-%d").date() - f_inicio).days) <= 30
@@ -165,7 +224,6 @@ def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
                         "mensaje": f"El trabajador {nombre} ({dept}) inicia vacaciones el {f_inicio}. Requiere Examen Prevacacional urgente."
                     })
 
-            # Postvacacional: Alerta al momento o hasta 10 días después del reintegro
             dias_post_vac = (hoy - f_reintegro).days
             if -2 <= dias_post_vac <= 10:
                 tiene_examen_post = any(
@@ -181,7 +239,6 @@ def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
         except ValueError:
             pass
 
-    # 2. Alerta Rutinario Anual (Cada 365 días desde ingreso o desde el último examen rutinario)
     fechas_rutinarios = []
     for e in examenes_realizados:
         if e.get("tipo_examen") == "Rutinario Anual" and e.get("fecha"):
@@ -205,9 +262,10 @@ def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
 
     return alertas_examenes
 
-def obtener_alertas_examenes() -> List[str]:
+def obtener_alertas_examenes(db: Session) -> List[str]:
     todas_alertas = []
-    for w in MOCK_WORKERS.values():
+    workers = obtener_workers_db(db)
+    for w in workers.values():
         res = evaluar_examenes_pendientes(w)
         for item in res:
             todas_alertas.append(item["mensaje"])
@@ -219,12 +277,15 @@ def login_view(request: Request):
 
 @app.post("/api/auth/login")
 def login_api(username: str = Form(...), password: str = Form(...), response: Response = None):
-    user = MOCK_USERS.get(username.lower().strip())
-    if not user or user["password"] != password:
+    db = SessionLocal()
+    user = db.query(UserModel).filter(UserModel.username == username.lower().strip()).first()
+    if not user or user.password != password:
+        db.close()
         raise HTTPException(status_code=400, detail="Nombre de usuario o contraseña incorrectos.")
     
     res = RedirectResponse(url="/", status_code=303)
-    res.set_cookie(key="session_user", value=user["username"], httponly=True)
+    res.set_cookie(key="session_user", value=user.username, httponly=True)
+    db.close()
     return res
 
 @app.get("/logout")
@@ -240,26 +301,36 @@ def register_user(
     security_question: str = Form(...),
     security_answer: str = Form(...)
 ):
+    db = SessionLocal()
     uname = username.lower().strip()
-    if uname in MOCK_USERS:
+    existente = db.query(UserModel).filter(UserModel.username == uname).first()
+    if existente:
+        db.close()
         raise HTTPException(status_code=400, detail="El nombre de usuario ya se encuentra registrado.")
     
-    MOCK_USERS[uname] = {
-        "username": uname,
-        "password": password,
-        "role": "Analista",
-        "security_question": security_question,
-        "security_answer": security_answer.lower().strip()
-    }
+    nuevo_usuario = UserModel(
+        username=uname,
+        password=password,
+        role="Analista",
+        security_question=security_question,
+        security_answer=security_answer.lower().strip()
+    )
+    db.add(nuevo_usuario)
+    db.commit()
+    db.close()
     return {"message": "Usuario registrado exitosamente."}
 
 @app.get("/api/auth/get-security-question/{username}")
 def get_security_question(username: str):
+    db = SessionLocal()
     uname = username.lower().strip()
-    user = MOCK_USERS.get(uname)
+    user = db.query(UserModel).filter(UserModel.username == uname).first()
     if not user:
+        db.close()
         raise HTTPException(status_code=404, detail="El usuario no se encuentra registrado.")
-    return {"security_question": user.get("security_question", "Pregunta no configurada.")}
+    pregunta = user.security_question or "Pregunta no configurada."
+    db.close()
+    return {"security_question": pregunta}
 
 @app.post("/api/auth/recover")
 def recover_password(
@@ -267,24 +338,32 @@ def recover_password(
     security_answer: str = Form(...),
     new_password: str = Form(...)
 ):
+    db = SessionLocal()
     uname = username.lower().strip()
-    user = MOCK_USERS.get(uname)
+    user = db.query(UserModel).filter(UserModel.username == uname).first()
     if not user:
+        db.close()
         raise HTTPException(status_code=404, detail="El usuario especificado no existe.")
     
-    if user["security_answer"] != security_answer.lower().strip():
+    if user.security_answer != security_answer.lower().strip():
+        db.close()
         raise HTTPException(status_code=400, detail="La respuesta a la pregunta de seguridad es incorrecta.")
     
-    user["password"] = new_password
+    user.password = new_password
+    db.commit()
+    db.close()
     return {"message": "Contraseña actualizada exitosamente."}
 
 @app.get("/")
 def home(request: Request):
-    user = get_current_user(request)
+    db = SessionLocal()
+    user = get_current_user(request, db)
     if not user:
+        db.close()
         return RedirectResponse(url="/login")
-    alertas_contratos = obtener_alertas_contrato()
-    alertas_examenes = obtener_alertas_examenes()
+    alertas_contratos = obtener_alertas_contrato(db)
+    alertas_examenes = obtener_alertas_examenes(db)
+    db.close()
     return templates.TemplateResponse(
         request=request, 
         name="worker_profile.html", 
@@ -297,11 +376,12 @@ def home(request: Request):
 
 @app.get("/register")
 def register_page(request: Request):
-    user = get_current_user(request)
+    db = SessionLocal()
+    user = get_current_user(request, db)
+    db.close()
     if not user:
         return RedirectResponse(url="/login")
     
-    # Permitir acceso si es Webmaster o Coordinador explícitamente
     if user.get("role") not in ["Webmaster", "Coordinador"]:
         return RedirectResponse(url="/")
         
@@ -309,63 +389,83 @@ def register_page(request: Request):
 
 @app.get("/users")
 def users_management_page(request: Request):
-    user = get_current_user(request)
+    db = SessionLocal()
+    user = get_current_user(request, db)
+    db.close()
     if not user or user["role"] not in ["Webmaster", "Coordinador"]:
         return RedirectResponse(url="/")
     return templates.TemplateResponse(request=request, name="user_management.html", context={"current_user": user})
 
 @app.get("/api/users/list")
 def list_users(request: Request):
-    user = get_current_user(request)
+    db = SessionLocal()
+    user = get_current_user(request, db)
     if not user or user["role"] not in ["Webmaster", "Coordinador"]:
+        db.close()
         raise HTTPException(status_code=403, detail="Acceso denegado a la gestión de usuarios.")
     
+    users = db.query(UserModel).all()
     users_list = []
-    for u in MOCK_USERS.values():
-        if user["role"] == "Coordinador" and u["role"] == "Webmaster":
+    for u in users:
+        if user["role"] == "Coordinador" and u.role == "Webmaster":
             continue
-            
         users_list.append({
-            "username": u["username"],
-            "role": u["role"],
-            "security_question": u["security_question"]
+            "username": u.username,
+            "role": u.role,
+            "security_question": u.security_question
         })
+    db.close()
     return users_list
 
 @app.put("/api/users/update-role")
 def update_user_role(username: str = Form(...), new_role: str = Form(...), request: Request = None):
-    current = get_current_user(request)
+    db = SessionLocal()
+    current = get_current_user(request, db)
     if not current or current["role"] not in ["Webmaster", "Coordinador"]:
+        db.close()
         raise HTTPException(status_code=403, detail="Acceso denegado.")
     
-    target_user = MOCK_USERS.get(username.lower().strip())
+    target_user = db.query(UserModel).filter(UserModel.username == username.lower().strip()).first()
     if not target_user:
+        db.close()
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
     
-    target_user["role"] = new_role
+    target_user.role = new_role
+    db.commit()
+    db.close()
     return {"message": f"El rol de {username} ha sido actualizado a {new_role}."}
 
 @app.delete("/api/users/delete/{username}")
 def delete_user(username: str, request: Request):
-    current = get_current_user(request)
+    db = SessionLocal()
+    current = get_current_user(request, db)
     if not current or current["role"] not in ["Webmaster", "Coordinador"]:
+        db.close()
         raise HTTPException(status_code=403, detail="Acceso denegado.")
     
     uname = username.lower().strip()
-    target_user = MOCK_USERS.get(uname)
+    target_user = db.query(UserModel).filter(UserModel.username == uname).first()
     
     if not target_user:
+        db.close()
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
     
-    if target_user["role"] == "Webmaster":
+    if target_user.role == "Webmaster":
+        db.close()
         raise HTTPException(status_code=400, detail="La cuenta principal de Webmaster no puede ser eliminada.")
     
-    del MOCK_USERS[uname]
+    db.delete(target_user)
+    db.commit()
+    db.close()
     return {"message": f"El usuario '{username}' ha sido eliminado exitosamente."}
 
 @app.get("/api/dashboard/stats")
 def get_dashboard_stats():
-    if not MOCK_WORKERS:
+    db = SessionLocal()
+    workers_dict = obtener_workers_db(db)
+    db.close()
+
+    if not workers_dict:
         return {
             "total_trabajadores": 0,
             "total_activos": 0,
@@ -383,26 +483,26 @@ def get_dashboard_stats():
             "top_cronicas": []
         }
 
-    total_trabajadores = len(MOCK_WORKERS)
-    total_reposo = sum(1 for w in MOCK_WORKERS.values() if evaluar_estatus_trabajador(w) == "EN REPOSO")
-    total_activos = sum(1 for w in MOCK_WORKERS.values() if evaluar_estatus_trabajador(w) == "ACTIVO")
+    total_trabajadores = len(workers_dict)
+    total_reposo = sum(1 for w in workers_dict.values() if evaluar_estatus_trabajador(w) == "EN REPOSO")
+    total_activos = sum(1 for w in workers_dict.values() if evaluar_estatus_trabajador(w) == "ACTIVO")
 
-    total_masculino = sum(1 for w in MOCK_WORKERS.values() if w.get("gender") == "Masculino")
-    total_femenino = sum(1 for w in MOCK_WORKERS.values() if w.get("gender") == "Femenino")
+    total_masculino = sum(1 for w in workers_dict.values() if w.get("gender") == "Masculino")
+    total_femenino = sum(1 for w in workers_dict.values() if w.get("gender") == "Femenino")
 
-    area_administrativos = sum(1 for w in MOCK_WORKERS.values() if w.get("area") == "Administrativo")
-    area_operativos = sum(1 for w in MOCK_WORKERS.values() if w.get("area") == "Operativo")
-    area_ventas = sum(1 for w in MOCK_WORKERS.values() if w.get("area") == "Ventas")
+    area_administrativos = sum(1 for w in workers_dict.values() if w.get("area") == "Administrativo")
+    area_operativos = sum(1 for w in workers_dict.values() if w.get("area") == "Operativo")
+    area_ventas = sum(1 for w in workers_dict.values() if w.get("area") == "Ventas")
 
-    total_lentes = sum(1 for w in MOCK_WORKERS.values() if w.get("uses_glasses") == "Sí")
-    total_discapacidad = sum(1 for w in MOCK_WORKERS.values() if w.get("disability_condition") and w.get("disability_condition").strip().lower() != "ninguna")
-    total_cronicas = sum(1 for w in MOCK_WORKERS.values() if len(w.get("pathologies", [])) > 0 or (w.get("chronic_treatment") and w.get("chronic_treatment").strip().lower() != "ninguno"))
+    total_lentes = sum(1 for w in workers_dict.values() if w.get("uses_glasses") == "Sí")
+    total_discapacidad = sum(1 for w in workers_dict.values() if w.get("disability_condition") and w.get("disability_condition").strip().lower() != "ninguna")
+    total_cronicas = sum(1 for w in workers_dict.values() if len(w.get("pathologies", [])) > 0 or (w.get("chronic_treatment") and w.get("chronic_treatment").strip().lower() != "ninguno"))
 
     fechas_accidentes_empresa = []
     accidentes_por_gerencia: Dict[str, List[datetime]] = {}
     departamentos_existentes = set()
 
-    for w in MOCK_WORKERS.values():
+    for w in workers_dict.values():
         dept = w.get("department", "Sin Especificar").strip().title()
         if dept:
             departamentos_existentes.add(dept)
@@ -420,27 +520,19 @@ def get_dashboard_stats():
                     pass
 
     hoy = datetime.now()
-
-    if fechas_accidentes_empresa:
-        dias_sin_accidentes_empresa = (hoy - max(fechas_accidentes_empresa)).days
-    else:
-        dias_sin_accidentes_empresa = 0
+    dias_sin_accidentes_empresa = (hoy - max(fechas_accidentes_empresa)).days if fechas_accidentes_empresa else 0
 
     stats_gerencias = []
     for dept in sorted(departamentos_existentes):
         fechas_dept = accidentes_por_gerencia.get(dept, [])
-        if fechas_dept:
-            dias_dept = (hoy - max(fechas_dept)).days
-        else:
-            dias_dept = 0
-
+        dias_dept = (hoy - max(fechas_dept)).days if fechas_dept else 0
         stats_gerencias.append({
             "gerencia": dept,
             "dias_sin_accidentes": max(dias_dept, 0)
         })
 
     patologias_lista = []
-    for w in MOCK_WORKERS.values():
+    for w in workers_dict.values():
         for p in w.get("pathologies", []):
             if p.get("nombre"):
                 patologias_lista.append(p["nombre"].strip().title())
@@ -467,16 +559,18 @@ def get_dashboard_stats():
 
 @app.get("/api/workers/search/{cedula}")
 def search_worker(cedula: str):
+    db = SessionLocal()
     cedula_limpia = cedula.upper().strip()
-    worker = MOCK_WORKERS.get(cedula_limpia)
-    if not worker:
+    record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
+    db.close()
+    if not record:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado")
     
-    worker_copy = dict(worker)
-    worker_copy["days_without_rest"] = calcular_dias_sin_reposo(worker)
-    worker_copy["calculated_status"] = evaluar_estatus_trabajador(worker)
-    worker_copy["pending_exams"] = evaluar_examenes_pendientes(worker)
-    return worker_copy
+    worker = json.loads(record.data)
+    worker["days_without_rest"] = calcular_dias_sin_reposo(worker)
+    worker["calculated_status"] = evaluar_estatus_trabajador(worker)
+    worker["pending_exams"] = evaluar_examenes_pendientes(worker)
+    return worker
 
 @app.post("/api/workers/create")
 async def create_worker(
@@ -528,8 +622,11 @@ async def create_worker(
     medical_exams_json: str = Form("[]"),
     photo_file: Optional[UploadFile] = File(None)
 ):
+    db = SessionLocal()
     cedula_limpia = cedula.upper().strip()
-    if cedula_limpia in MOCK_WORKERS:
+    existente = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
+    if existente:
+        db.close()
         raise HTTPException(status_code=400, detail="La cédula ya se encuentra registrada.")
 
     photo_url = "/static/uploads/default_avatar.png"
@@ -541,7 +638,7 @@ async def create_worker(
             shutil.copyfileobj(photo_file.file, buffer)
         photo_url = f"/static/uploads/{filename}"
 
-    new_worker = {
+    new_worker_dict = {
         "cedula": cedula_limpia,
         "first_name": first_name,
         "last_name": last_name,
@@ -596,7 +693,10 @@ async def create_worker(
         "leave_reason": ""
     }
 
-    MOCK_WORKERS[cedula_limpia] = new_worker
+    record = WorkerModel(cedula=cedula_limpia, data=json.dumps(new_worker_dict, ensure_ascii=False))
+    db.add(record)
+    db.commit()
+    db.close()
     return {"message": "Trabajador registrado exitosamente", "cedula": cedula_limpia}
 
 @app.put("/api/workers/update/{cedula}")
@@ -646,11 +746,14 @@ async def update_worker(
     risk_notifications_json: str = Form("[]"),
     photo_file: Optional[UploadFile] = File(None)
 ):
+    db = SessionLocal()
     cedula_limpia = cedula.upper().strip()
-    worker = MOCK_WORKERS.get(cedula_limpia)
-    if not worker:
+    record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
+    if not record:
+        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
 
+    worker = json.loads(record.data)
     worker["first_name"] = first_name
     worker["last_name"] = last_name
     worker["gender"] = gender
@@ -713,61 +816,99 @@ async def update_worker(
             shutil.copyfileobj(photo_file.file, buffer)
         worker["photo_url"] = f"/static/uploads/{filename}"
 
+    record.data = json.dumps(worker, ensure_ascii=False)
+    db.commit()
+    db.close()
     return {"message": "Expediente actualizado exitosamente"}
 
 @app.post("/api/workers/add-medical-exam/{cedula}")
 def add_medical_exam(cedula: str, exam: MedicalExamSchema):
-    worker = MOCK_WORKERS.get(cedula.upper().strip())
-    if not worker:
+    db = SessionLocal()
+    cedula_limpia = cedula.upper().strip()
+    record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
+    if not record:
+        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
+    worker = json.loads(record.data)
     if "medical_exams" not in worker:
         worker["medical_exams"] = []
     
     worker["medical_exams"].append(exam.dict())
+    record.data = json.dumps(worker, ensure_ascii=False)
+    db.commit()
+    db.close()
     return {"message": f"Examen preventivo '{exam.tipo_examen}' registrado exitosamente."}
 
 @app.post("/api/workers/add-vacation/{cedula}")
 def add_vacation(cedula: str, vacation: VacationSchema):
-    worker = MOCK_WORKERS.get(cedula.upper().strip())
-    if not worker:
+    db = SessionLocal()
+    cedula_limpia = cedula.upper().strip()
+    record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
+    if not record:
+        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
+    worker = json.loads(record.data)
     if "vacations" not in worker:
         worker["vacations"] = []
     
     worker["vacations"].append(vacation.dict())
+    record.data = json.dumps(worker, ensure_ascii=False)
+    db.commit()
+    db.close()
     return {"message": "Período vacacional registrado exitosamente"}
 
 @app.post("/api/workers/add-risk/{cedula}")
 def add_risk_notification(cedula: str, risk: RiskSchema):
-    worker = MOCK_WORKERS.get(cedula.upper().strip())
-    if not worker:
+    db = SessionLocal()
+    cedula_limpia = cedula.upper().strip()
+    record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
+    if not record:
+        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
+    worker = json.loads(record.data)
     if "risk_notifications" not in worker:
         worker["risk_notifications"] = []
     
     worker["risk_notifications"].append(risk.dict())
+    record.data = json.dumps(worker, ensure_ascii=False)
+    db.commit()
+    db.close()
     return {"message": "Notificación de riesgo registrada exitosamente"}
 
 @app.post("/api/workers/discharge/{cedula}")
 def discharge_worker(cedula: str):
-    worker = MOCK_WORKERS.get(cedula.upper().strip())
-    if not worker:
+    db = SessionLocal()
+    cedula_limpia = cedula.upper().strip()
+    record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
+    if not record:
+        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
+    worker = json.loads(record.data)
     worker["is_on_leave"] = False
     worker["leave_days"] = 0
     worker["leave_reason"] = ""
+    record.data = json.dumps(worker, ensure_ascii=False)
+    db.commit()
+    db.close()
     return {"message": "Trabajador dado de alta exitosamente"}
 
 @app.post("/api/workers/add-event/{cedula}")
 def add_event(cedula: str, event: EventSchema):
-    worker = MOCK_WORKERS.get(cedula.upper().strip())
-    if not worker:
+    db = SessionLocal()
+    cedula_limpia = cedula.upper().strip()
+    record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
+    if not record:
+        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
+    worker = json.loads(record.data)
+    if "medical_events" not in worker:
+        worker["medical_events"] = []
+
     worker["medical_events"].append(event.dict())
 
     if event.is_reposo and event.tipo == "Reposo Médico":
@@ -775,26 +916,39 @@ def add_event(cedula: str, event: EventSchema):
         worker["leave_days"] = event.rest_days
         worker["leave_reason"] = event.descripcion
     
+    record.data = json.dumps(worker, ensure_ascii=False)
+    db.commit()
+    db.close()
     return {"message": "Evento registrado exitosamente"}
 
 @app.delete("/api/workers/delete/{cedula}")
 def delete_worker(cedula: str):
+    db = SessionLocal()
     cedula_limpia = cedula.upper().strip()
-    if cedula_limpia not in MOCK_WORKERS:
+    record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
+    if not record:
+        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado para eliminar")
-    del MOCK_WORKERS[cedula_limpia]
+    
+    db.delete(record)
+    db.commit()
+    db.close()
     return {"message": f"Trabajador C.I. {cedula_limpia} eliminado correctamente."}
 
 @app.get("/api/workers/export/excel")
 def export_excel():
-    if not MOCK_WORKERS:
+    db = SessionLocal()
+    workers_dict = obtener_workers_db(db)
+    db.close()
+
+    if not workers_dict:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="No se encontraron registros de trabajadores en la base de datos para exportar."
         )
 
     records = []
-    for w in MOCK_WORKERS.values():
+    for w in workers_dict.values():
         records.append({
             "Código Trabajador": w.get("worker_code", ""),
             "Cédula": w.get("cedula", ""),
@@ -832,10 +986,14 @@ def export_excel():
 
 @app.get("/api/workers/export/pdf/{cedula}")
 def export_pdf(cedula: str):
-    worker = MOCK_WORKERS.get(cedula.upper().strip())
-    if not worker:
+    db = SessionLocal()
+    cedula_limpia = cedula.upper().strip()
+    record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
+    db.close()
+    if not record:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
 
+    worker = json.loads(record.data)
     pdf_filename = f"Ficha_Trabajador_{worker['cedula']}.pdf"
     pdf_path = str(BASE_DIR / f"static/exports/{pdf_filename}")
     
