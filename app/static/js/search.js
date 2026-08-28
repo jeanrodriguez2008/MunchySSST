@@ -5,6 +5,9 @@ let chartReporteSaludInstance = null;
 let chartReporteSeguridadInstance = null;
 let chartGeneroInstance = null;
 let chartAreasInstance = null;
+let chartReporteGeneroInstance = null;
+let chartReporteAreasInstance = null;
+let chartReporteTopCronicasInstance = null;
 
 function normalizarCedula(cedula) {
     if (!cedula) return '';
@@ -17,6 +20,20 @@ function formatearNumeroPuntos(numero) {
     const numLimpio = parseInt(numero.toString().replace(/\D/g, ''), 10);
     if (isNaN(numLimpio)) return numero;
     return numLimpio.toLocaleString('de-DE');
+}
+
+function irARegistroTrabajador() {
+    const rolSesion = document.getElementById('userRoleSession')?.value || '';
+    if (rolSesion === 'Webmaster' || rolSesion === 'Coordinador') {
+        window.location.href = '/register';
+    } else {
+        Swal.fire({
+            title: 'Acceso Denegado',
+            text: 'No tienes privilegios para registrar trabajadores.',
+            icon: 'error',
+            confirmButtonColor: '#d9251d'
+        });
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -176,7 +193,7 @@ async function generarInformeInteligente() {
         const hoy = new Date();
         document.getElementById('reportFechaGeneracion').textContent = `Fecha: ${hoy.getDate().toString().padStart(2, '0')}/${(hoy.getMonth()+1).toString().padStart(2, '0')}/${hoy.getFullYear()}`;
 
-        let analisisText = `En el marco del **Servicio de Seguridad y Salud en el Trabajo**, la empresa registra una plantilla total de **${stats.total_trabajadores} trabajadores** (${stats.total_masculino} Masculinos y ${stats.total_femenino} Femeninos) distribuidos en: **${stats.area_administrativos} Administrativos**, **${stats.area_operativos} Operativos** y **${stats.area_ventas} Ventas**. Se mantiene un récord global óptimo de **${formatearNumeroPuntos(stats.dias_sin_accidentes_empresa)} días consecutivos sin accidentes laborales**. `;
+        let analisisText = `En el marco del **Servicio de Seguridad y Salud en el Trabajo**, la empresa registra una plantilla total de **${stats.total_trabajadores} trabajadores** (${stats.total_masculino} Masculinos y ${stats.total_femenino} Femeninos) distribuidos en: **${stats.area_administrativos} Administrativos**, **${stats.area_operativos} Operativos** y **${stats.area_ventas} Ventas**. Se mantiene un récord global de **${formatearNumeroPuntos(stats.dias_sin_accidentes_empresa)} días consecutivos sin accidentes laborales**. `;
         
         if (stats.total_reposo === 0) {
             analisisText += `Actualmente **no existen trabajadores en reposo médico**, contando con **${stats.total_activos} trabajadores totalmente activos**. `;
@@ -185,7 +202,7 @@ async function generarInformeInteligente() {
         }
 
         if (stats.total_cronicas > 0) {
-            const patologiaPrincipal = stats.top_cronicas[0] ? stats.top_cronicas[0].nombre : 'Patologías no especificadas';
+            const patologiaPrincipal = stats.top_cronicas && stats.top_cronicas[0] ? stats.top_cronicas[0].nombre : 'Patologías diversas';
             analisisText += `En Salud Ocupacional, se identificaron **${stats.total_cronicas} caso(s) de condiciones crónicas**, teniendo mayor prevalencia la categoría de **${patologiaPrincipal}**. `;
         } else {
             analisisText += `No se registran diagnósticos de enfermedades crónicas activas en la plantilla. `;
@@ -194,6 +211,37 @@ async function generarInformeInteligente() {
         analisisText += `Se registra un total de **${stats.total_lentes} trabajador(es)** con uso de corrección visual (lentes) y **${stats.total_discapacidad} caso(s)** con condición de discapacidad notificada.`;
 
         document.getElementById('resumenTextoInteligente').innerHTML = analisisText;
+
+        // Generación Dinámica de Sugerencias
+        const listaSugerencias = document.getElementById('listaSugerenciasInteligentes');
+        if (listaSugerencias) {
+            listaSugerencias.innerHTML = '';
+            const sugerencias = [];
+
+            if (stats.total_trabajadores === 0) {
+                sugerencias.push("<strong>Carga Inicial de Datos:</strong> No hay trabajadores registrados. Realice la incorporación de la plantilla para obtener métricas efectivas.");
+            } else {
+                if (stats.total_lentes > 0) {
+                    sugerencias.push(`<strong>Evaluaciones Oftalmológicas:</strong> Con ${stats.total_lentes} trabajador(es) con corrección visual, se sugiere coordinar jornadas de agudeza visual anuales.`);
+                }
+                if (stats.total_cronicas > 0) {
+                    const patologia = stats.top_cronicas[0] ? stats.top_cronicas[0].nombre : 'Patologías crónicas';
+                    sugerencias.push(`<strong>Programa de Vigilancia Epidemiológica:</strong> Implementar seguimiento constante para ${stats.total_cronicas} caso(s) de afecciones crónicas, con foco prioritario en <em>${patologia}</em>.`);
+                }
+                if (stats.area_operativos > 0) {
+                    sugerencias.push(`<strong>Inspección de Puestos Operativos:</strong> Priorizar la entrega periódica de EPIs y evaluaciones ergonómicas para el área Operativa (${stats.area_operativos} trabajadores).`);
+                }
+                if (stats.total_reposo > 0) {
+                    sugerencias.push(`<strong>Monitoreo de Ausentismo:</strong> Realizar seguimiento estricto a las ${stats.total_reposo} convalecencias en curso para planificar los exámenes postvacacionales / reincorporaciones.`);
+                } else {
+                    sugerencias.push("<strong>Promoción de la Salud:</strong> Mantener programas preventivos y pausas activas para sostener el indicador de cero reposos médicos.");
+                }
+            }
+
+            sugerencias.forEach(sug => {
+                listaSugerencias.innerHTML += `<li class="list-group-item"><i class="fa-solid fa-angle-right text-warning me-2 fw-bold"></i>${sug}</li>`;
+            });
+        }
 
         const modal = new bootstrap.Modal(document.getElementById('modalInformeInteligente'));
         modal.show();
@@ -208,49 +256,102 @@ async function generarInformeInteligente() {
 }
 
 function renderizarGraficosInforme(stats) {
-    const ctxSalud = document.getElementById('chartReporteSalud').getContext('2d');
-    if (chartReporteSaludInstance) chartReporteSaludInstance.destroy();
+    // 1. Género
+    const ctxGenero = document.getElementById('chartReporteGenero')?.getContext('2d');
+    if (ctxGenero) {
+        if (chartReporteGeneroInstance) chartReporteGeneroInstance.destroy();
+        chartReporteGeneroInstance = new Chart(ctxGenero, {
+            type: 'doughnut',
+            data: {
+                labels: ['Masculino', 'Femenino'],
+                datasets: [{
+                    data: [stats.total_masculino || 0, stats.total_femenino || 0],
+                    backgroundColor: ['#0d6efd', '#dc3545']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
 
-    chartReporteSaludInstance = new Chart(ctxSalud, {
-        type: 'doughnut',
-        data: {
-            labels: ['En Reposo', 'Usan Lentes', 'Discapacidad', 'Enf. Crónicas'],
-            datasets: [{
-                data: [stats.total_reposo, stats.total_lentes, stats.total_discapacidad, stats.total_cronicas],
-                backgroundColor: ['#d9251d', '#0d6efd', '#ffc107', '#0dcaf0']
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' } }
-        }
-    });
+    // 2. Áreas
+    const ctxAreas = document.getElementById('chartReporteAreas')?.getContext('2d');
+    if (ctxAreas) {
+        if (chartReporteAreasInstance) chartReporteAreasInstance.destroy();
+        chartReporteAreasInstance = new Chart(ctxAreas, {
+            type: 'bar',
+            data: {
+                labels: ['Administrativo', 'Operativo', 'Ventas'],
+                datasets: [{
+                    label: 'Trabajadores',
+                    data: [stats.area_administrativos || 0, stats.area_operativos || 0, stats.area_ventas || 0],
+                    backgroundColor: ['#0dcaf0', '#198754', '#ffc107'],
+                    borderRadius: 4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+    }
 
-    const ctxSeguridad = document.getElementById('chartReporteSeguridad').getContext('2d');
-    if (chartReporteSeguridadInstance) chartReporteSeguridadInstance.destroy();
+    // 3. Salud y Ausentismo
+    const ctxSalud = document.getElementById('chartReporteSalud')?.getContext('2d');
+    if (ctxSalud) {
+        if (chartReporteSaludInstance) chartReporteSaludInstance.destroy();
+        chartReporteSaludInstance = new Chart(ctxSalud, {
+            type: 'doughnut',
+            data: {
+                labels: ['En Reposo', 'Usan Lentes', 'Discapacidad', 'Enf. Crónicas'],
+                datasets: [{
+                    data: [stats.total_reposo || 0, stats.total_lentes || 0, stats.total_discapacidad || 0, stats.total_cronicas || 0],
+                    backgroundColor: ['#d9251d', '#0d6efd', '#ffc107', '#0dcaf0']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
 
-    const labelsGerencias = stats.gerencias_stats.map(g => g.gerencia);
-    const dataGerencias = stats.gerencias_stats.map(g => g.dias_sin_accidentes);
+    // 4. Seguridad por Gerencia
+    const ctxSeguridad = document.getElementById('chartReporteSeguridad')?.getContext('2d');
+    if (ctxSeguridad) {
+        if (chartReporteSeguridadInstance) chartReporteSeguridadInstance.destroy();
+        const labelsGerencias = stats.gerencias_stats ? stats.gerencias_stats.map(g => g.gerencia) : [];
+        const dataGerencias = stats.gerencias_stats ? stats.gerencias_stats.map(g => g.dias_sin_accidentes) : [];
 
-    chartReporteSeguridadInstance = new Chart(ctxSeguridad, {
-        type: 'bar',
-        data: {
-            labels: labelsGerencias.length > 0 ? labelsGerencias : ['Empresa General'],
-            datasets: [{
-                label: 'Días Sin Accidentes',
-                data: dataGerencias.length > 0 ? dataGerencias : [stats.dias_sin_accidentes_empresa],
-                backgroundColor: '#198754',
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } }
-        }
-    });
+        chartReporteSeguridadInstance = new Chart(ctxSeguridad, {
+            type: 'bar',
+            data: {
+                labels: labelsGerencias.length > 0 ? labelsGerencias : ['Empresa General'],
+                datasets: [{
+                    label: 'Días Sin Accidentes',
+                    data: dataGerencias.length > 0 ? dataGerencias : [stats.dias_sin_accidentes_empresa || 0],
+                    backgroundColor: '#198754',
+                    borderRadius: 4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+    }
+
+    // 5. Top Enfermedades Crónicas
+    const ctxTopCronicas = document.getElementById('chartReporteTopCronicas')?.getContext('2d');
+    if (ctxTopCronicas) {
+        if (chartReporteTopCronicasInstance) chartReporteTopCronicasInstance.destroy();
+        const topLabels = stats.top_cronicas ? stats.top_cronicas.map(item => item.nombre) : [];
+        const topData = stats.top_cronicas ? stats.top_cronicas.map(item => item.cantidad) : [];
+
+        chartReporteTopCronicasInstance = new Chart(ctxTopCronicas, {
+            type: 'bar',
+            data: {
+                labels: topLabels.length > 0 ? topLabels : ['Sin Casos'],
+                datasets: [{
+                    label: 'Casos',
+                    data: topData.length > 0 ? topData : [0],
+                    backgroundColor: ['#d9251d', '#ffc107', '#0d6efd'],
+                    borderRadius: 4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+    }
 }
 
 function aplicarPermisosRBAC() {

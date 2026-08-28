@@ -56,7 +56,7 @@
             <div class="d-flex align-items-center">
                 <button onclick="generarInformeInteligente()" class="btn btn-outline-primary btn-sm me-2"><i class="fa-solid fa-brain me-1"></i> Informe Inteligente</button>
                 <a href="/api/workers/export/excel" id="btnExportExcel" class="btn btn-outline-success btn-sm me-2"><i class="fa-solid fa-file-excel me-1"></i> Exportar a Excel</a>
-                <a href="/register" id="btnRegisterWorker" class="btn btn-danger btn-sm me-2"><i class="fa-solid fa-user-plus me-1"></i> Registrar Trabajador</a>
+                <button onclick="irARegistroTrabajador()" id="btnRegisterWorker" class="btn btn-danger btn-sm me-2"><i class="fa-solid fa-user-plus me-1"></i> Registrar Trabajador</button>
                 
                 {% if current_user.role in ['Webmaster', 'Coordinador'] %}
                 <a href="/users" class="btn btn-outline-dark btn-sm me-3"><i class="fa-solid fa-users-gear me-1"></i> Gestión de Usuarios</a>
@@ -700,8 +700,8 @@
                     <h5 class="modal-title fw-bold"><i class="fa-solid fa-brain me-2"></i>Informe Inteligente de Gestión SSST</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <div id="informePdfContent" class="p-4 bg-white">
+                <div class="modal-body p-4 bg-light">
+                    <div id="informePdfContent" class="p-4 bg-white rounded shadow-sm">
                         <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
                             <div class="d-flex align-items-center gap-3">
                                 <img src="/static/img/logo_header.png" alt="Munchy Logo" class="report-header-logo">
@@ -712,33 +712,74 @@
                                 </div>
                             </div>
                             <div class="text-end">
-                                <span class="badge bg-secondary p-2 fs-6" id="reportFechaGeneracion">Fecha: 27/08/2026</span>
+                                <span class="badge bg-secondary p-2 fs-6" id="reportFechaGeneracion">Fecha: --/--/----</span>
                             </div>
                         </div>
 
+                        <!-- Resumen Ejecutivo -->
                         <div class="alert alert-light border border-danger rounded-3 p-3 mb-4">
                             <h6 class="fw-bold text-danger mb-2"><i class="fa-solid fa-lightbulb me-2"></i>Resumen Ejecutivo Diagnóstico:</h6>
-                            <p id="resumenTextoInteligente" class="mb-0 text-dark" style="line-height: 1.6;">Generando análisis...</p>
+                            <div id="resumenTextoInteligente" class="mb-0 text-dark" style="line-height: 1.6;">Generando análisis...</div>
                         </div>
 
-                        <div class="row g-4 mb-2">
-                            <div class="col-6">
-                                <div class="card p-3 border shadow-sm">
+                        <!-- Fila 1 de Gráficos -->
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-6">
+                                <div class="card p-3 border shadow-sm h-100">
+                                    <h6 class="fw-bold text-secondary text-center mb-3" style="font-size: 0.9rem;">Distribución por Género</h6>
+                                    <div style="height: 220px; position: relative;">
+                                        <canvas id="chartReporteGenero"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card p-3 border shadow-sm h-100">
+                                    <h6 class="fw-bold text-secondary text-center mb-3" style="font-size: 0.9rem;">Trabajadores por Área</h6>
+                                    <div style="height: 220px; position: relative;">
+                                        <canvas id="chartReporteAreas"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fila 2 de Gráficos -->
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-4">
+                                <div class="card p-3 border shadow-sm h-100">
                                     <h6 class="fw-bold text-secondary text-center mb-3" style="font-size: 0.9rem;">Distribución de Casos Médicos y Ausentismo</h6>
-                                    <div style="height: 220px;">
+                                    <div style="height: 220px; position: relative;">
                                         <canvas id="chartReporteSalud"></canvas>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-6">
-                                <div class="card p-3 border shadow-sm">
+                            <div class="col-md-4">
+                                <div class="card p-3 border shadow-sm h-100">
                                     <h6 class="fw-bold text-secondary text-center mb-3" style="font-size: 0.9rem;">Días Sin Accidentes por Gerencia</h6>
-                                    <div style="height: 220px;">
+                                    <div style="height: 220px; position: relative;">
                                         <canvas id="chartReporteSeguridad"></canvas>
                                     </div>
                                 </div>
                             </div>
+                            <div class="col-md-4">
+                                <div class="card p-3 border shadow-sm h-100">
+                                    <h6 class="fw-bold text-secondary text-center mb-3" style="font-size: 0.9rem;">Top 3 Enfermedades Crónicas</h6>
+                                    <div style="height: 220px; position: relative;">
+                                        <canvas id="chartReporteTopCronicas"></canvas>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- Sección de Sugerencias Basadas en Resultados -->
+                        <div class="card border-warning bg-white shadow-sm mt-3">
+                            <div class="card-body">
+                                <h6 class="card-title text-warning text-dark fw-bold mb-3"><i class="fa-solid fa-clipboard-check me-2 text-warning"></i>Recomendaciones y Plan de Acción Sugerido:</h6>
+                                <ul id="listaSugerenciasInteligentes" class="list-group list-group-flush">
+                                    <!-- Se generan dinámicamente -->
+                                </ul>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
                 <div class="modal-footer">
