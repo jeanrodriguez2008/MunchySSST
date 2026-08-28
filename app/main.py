@@ -3,7 +3,7 @@ import os
 import json
 import shutil
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from collections import Counter
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -70,17 +70,17 @@ def get_db():
     finally:
         db.close()
 
-# Función formateadora para transformar cualquier fecha YYYY-MM-DD a DD/MM/YYYY
-def fmt_fecha(fecha_str: Any) -> str:
-    if not fecha_str:
+# Función formateadora robusta para transformar cualquier fecha a DD/MM/YYYY
+def fmt_fecha(fecha_val: Any) -> str:
+    if not fecha_val:
         return "N/A"
-    if isinstance(fecha_str, (datetime, datetime.date)):
-        return fecha_str.strftime("%d/%m/%Y")
     try:
-        dt = datetime.strptime(str(fecha_str).strip(), "%Y-%m-%d")
+        if hasattr(fecha_val, "strftime"):
+            return fecha_val.strftime("%d/%m/%Y")
+        dt = datetime.strptime(str(fecha_val).strip(), "%Y-%m-%d")
         return dt.strftime("%d/%m/%Y")
-    except ValueError:
-        return str(fecha_str)
+    except Exception:
+        return str(fecha_val)
 
 # Crear usuario Webmaster inicial si la base de datos está vacía
 def inicializar_webmaster():
@@ -218,82 +218,85 @@ def obtener_alertas_contrato(db: Session) -> List[str]:
 
 def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
     alertas_examenes = []
-    hoy = datetime.now().date()
-    nombre = f"{worker.get('first_name', '')} {worker.get('last_name', '')}".strip()
-    dept = worker.get("department", "N/A")
-    examenes_realizados = worker.get("medical_exams", [])
+    try:
+        hoy = datetime.now().date()
+        nombre = f"{worker.get('first_name', '')} {worker.get('last_name', '')}".strip()
+        dept = worker.get("department", "N/A")
+        examenes_realizados = worker.get("medical_exams", [])
 
-    for vac in worker.get("vacations", []):
-        try:
-            f_inicio = datetime.strptime(vac["fecha_inicio"], "%Y-%m-%d").date()
-            f_reintegro = datetime.strptime(vac["fecha_reintegro"], "%Y-%m-%d").date()
-
-            dias_para_vac = (f_inicio - hoy).days
-            if 0 <= dias_para_vac <= 15:
-                tiene_examen = any(
-                    e.get("tipo_examen") == "Prevacacional" and
-                    abs((datetime.strptime(e["fecha"], "%Y-%m-%d").date() - f_inicio).days) <= 30
-                    for e in examenes_realizados if e.get("fecha")
-                )
-                if not tiene_examen:
-                    alertas_examenes.append({
-                        "tipo": "Prevacacional",
-                        "mensaje": f"El trabajador {nombre} ({dept}) inicia vacaciones el {fmt_fecha(f_inicio)}. Requiere Examen Prevacacional urgente."
-                    })
-
-            dias_post_vac = (hoy - f_reintegro).days
-            if -2 <= dias_post_vac <= 10:
-                tiene_examen_post = any(
-                    e.get("tipo_examen") == "Postvacacional" and
-                    abs((datetime.strptime(e["fecha"], "%Y-%m-%d").date() - f_reintegro).days) <= 15
-                    for e in examenes_realizados if e.get("fecha")
-                )
-                if not tiene_examen_post:
-                    alertas_examenes.append({
-                        "tipo": "Postvacacional",
-                        "mensaje": f"El trabajador {nombre} ({dept}) reingresó de vacaciones el {fmt_fecha(f_reintegro)}. Pendiente Examen Postvacacional."
-                    })
-        except ValueError:
-            pass
-
-    fechas_rutinarios = []
-    for e in examenes_realizados:
-        if e.get("tipo_examen") == "Rutinario Anual" and e.get("fecha"):
+        for vac in worker.get("vacations", []):
             try:
-                fechas_rutinarios.append(datetime.strptime(e["fecha"], "%Y-%m-%d").date())
+                f_inicio = datetime.strptime(vac["fecha_inicio"], "%Y-%m-%d").date()
+                f_reintegro = datetime.strptime(vac["fecha_reintegro"], "%Y-%m-%d").date()
+
+                dias_para_vac = (f_inicio - hoy).days
+                if 0 <= dias_para_vac <= 15:
+                    tiene_examen = any(
+                        e.get("tipo_examen") == "Prevacacional" and
+                        abs((datetime.strptime(e["fecha"], "%Y-%m-%d").date() - f_inicio).days) <= 30
+                        for e in examenes_realizados if e.get("fecha")
+                    )
+                    if not tiene_examen:
+                        alertas_examenes.append({
+                            "tipo": "Prevacacional",
+                            "mensaje": f"El trabajador {nombre} ({dept}) inicia vacaciones el {fmt_fecha(f_inicio)}. Requiere Examen Prevacacional urgente."
+                        })
+
+                dias_post_vac = (hoy - f_reintegro).days
+                if -2 <= dias_post_vac <= 10:
+                    tiene_examen_post = any(
+                        e.get("tipo_examen") == "Postvacacional" and
+                        abs((datetime.strptime(e["fecha"], "%Y-%m-%d").date() - f_reintegro).days) <= 15
+                        for e in examenes_realizados if e.get("fecha")
+                    )
+                    if not tiene_examen_post:
+                        alertas_examenes.append({
+                            "tipo": "Postvacacional",
+                            "mensaje": f"El trabajador {nombre} ({dept}) reingresó de vacaciones el {fmt_fecha(f_reintegro)}. Pendiente Examen Postvacacional."
+                        })
             except ValueError:
                 pass
-    
-    fecha_base = None
-    if fechas_rutinarios:
-        fecha_base = max(fechas_rutinarios)
-    elif worker.get("hire_date"):
-        try:
-            fecha_base = datetime.strptime(worker["hire_date"], "%Y-%m-%d").date()
-        except ValueError:
-            fecha_base = None
 
-    if fecha_base:
-        try:
-            proximo_aniversario = fecha_base.replace(year=hoy.year)
-            if proximo_aniversario < hoy:
-                proximo_aniversario = fecha_base.replace(year=hoy.year + 1)
-        except ValueError:
-            proximo_aniversario = fecha_base.replace(year=hoy.year, day=28) + timedelta(days=4)
+        fechas_rutinarios = []
+        for e in examenes_realizados:
+            if e.get("tipo_examen") == "Rutinario Anual" and e.get("fecha"):
+                try:
+                    fechas_rutinarios.append(datetime.strptime(e["fecha"], "%Y-%m-%d").date())
+                except ValueError:
+                    pass
+        
+        fecha_base = None
+        if fechas_rutinarios:
+            fecha_base = max(fechas_rutinarios)
+        elif worker.get("hire_date"):
+            try:
+                fecha_base = datetime.strptime(worker["hire_date"], "%Y-%m-%d").date()
+            except ValueError:
+                fecha_base = None
 
-        dias_faltantes = (proximo_aniversario - hoy).days
-        fecha_aniversario_fmt = fmt_fecha(proximo_aniversario)
+        if fecha_base:
+            try:
+                proximo_aniversario = fecha_base.replace(year=hoy.year)
+                if proximo_aniversario < hoy:
+                    proximo_aniversario = fecha_base.replace(year=hoy.year + 1)
+            except ValueError:
+                proximo_aniversario = fecha_base.replace(year=hoy.year, day=28) + timedelta(days=4)
 
-        if 0 <= dias_faltantes <= 15:
-            alertas_examenes.append({
-                "tipo": "Rutinario Anual",
-                "mensaje": f"El trabajador {nombre} ({dept}) cumple un año más en la empresa el {fecha_aniversario_fmt}. Le quedan {dias_faltantes} días para realizar su Examen Rutinario Anual."
-            })
-        elif (hoy - fecha_base).days >= 365:
-            alertas_examenes.append({
-                "tipo": "Rutinario Anual",
-                "mensaje": f"El trabajador {nombre} ({dept}) tiene vencido su Examen Rutinario Anual (Fecha límite: {fecha_aniversario_fmt})."
-            })
+            dias_faltantes = (proximo_aniversario - hoy).days
+            fecha_aniversario_fmt = fmt_fecha(proximo_aniversario)
+
+            if 0 <= dias_faltantes <= 15:
+                alertas_examenes.append({
+                    "tipo": "Rutinario Anual",
+                    "mensaje": f"El trabajador {nombre} ({dept}) cumple un año más en la empresa el {fecha_aniversario_fmt}. Le quedan {dias_faltantes} días para realizar su Examen Rutinario Anual."
+                })
+            elif (hoy - fecha_base).days >= 365:
+                alertas_examenes.append({
+                    "tipo": "Rutinario Anual",
+                    "mensaje": f"El trabajador {nombre} ({dept}) tiene vencido su Examen Rutinario Anual (Fecha límite: {fecha_aniversario_fmt})."
+                })
+    except Exception:
+        pass
 
     return alertas_examenes
 
