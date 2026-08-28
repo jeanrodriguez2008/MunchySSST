@@ -23,8 +23,8 @@ from sqlalchemy import create_engine, Column, String, Boolean, Integer, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-# REEMPLAZA ESTA CADENA CON TU URL COMPLETA DE NEON TECH:
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://neondb_owner:npg_ByJer8w4NvVG@ep-billowing-bar-ayvfnsgj-pooler.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
+# NUEVA URL DE CONEXIÓN A NEON TECH
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://neondb_owner:npg_am8Ejz7hZGSP@ep-young-star-ayzjzes8-pooler.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
