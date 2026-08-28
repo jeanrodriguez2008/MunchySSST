@@ -8,7 +8,7 @@ from collections import Counter
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile, Response, status
+from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile, Response, status, Depends
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -18,15 +18,19 @@ import pandas as pd
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import uvicorn
-# --- CONFIGURACIÓN DE BASE DE DATOS NEON TECH (SQLAlchemy) ---
+
+# --- CONFIGURACIÓN OPTIMIZADA DE BASE DE DATOS NEON TECH (SQLAlchemy) ---
 from sqlalchemy import create_engine, Column, String, Boolean, Integer, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-# NUEVA URL DE CONEXIÓN A NEON TECH
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://neondb_owner:npg_am8Ejz7hZGSP@ep-young-star-ayzjzes8-pooler.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=300
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -65,6 +69,18 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Función formateadora para transformar cualquier fecha YYYY-MM-DD a DD/MM/YYYY
+def fmt_fecha(fecha_str: Any) -> str:
+    if not fecha_str:
+        return "N/A"
+    if isinstance(fecha_str, (datetime, datetime.date)):
+        return fecha_str.strftime("%d/%m/%Y")
+    try:
+        dt = datetime.strptime(str(fecha_str).strip(), "%Y-%m-%d")
+        return dt.strftime("%d/%m/%Y")
+    except ValueError:
+        return str(fecha_str)
 
 # Crear usuario Webmaster inicial si la base de datos está vacía
 def inicializar_webmaster():
@@ -190,10 +206,11 @@ def obtener_alertas_contrato(db: Session) -> List[str]:
                 if 0 <= dias_restantes <= 10:
                     nombre_completo = f"{w.get('first_name', '')} {w.get('last_name', '')}".strip()
                     dept = w.get("department", "N/A")
+                    fecha_fmt = fmt_fecha(dt_fin)
                     if dias_restantes == 0:
-                        msg = f"El Trabajador {nombre_completo}, perteneciente al Departamento {dept}, vence su contrato HOY."
+                        msg = f"El Trabajador {nombre_completo}, perteneciente al Departamento {dept}, vence su contrato HOY ({fecha_fmt})."
                     else:
-                        msg = f"El Trabajador {nombre_completo}, perteneciente al Departamento {dept}, le quedan {dias_restantes} días para vencer el contrato."
+                        msg = f"El Trabajador {nombre_completo}, perteneciente al Departamento {dept}, le quedan {dias_restantes} días para vencer el contrato ({fecha_fmt})."
                     alertas.append(msg)
             except ValueError:
                 pass
@@ -221,7 +238,7 @@ def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
                 if not tiene_examen:
                     alertas_examenes.append({
                         "tipo": "Prevacacional",
-                        "mensaje": f"El trabajador {nombre} ({dept}) inicia vacaciones el {f_inicio}. Requiere Examen Prevacacional urgente."
+                        "mensaje": f"El trabajador {nombre} ({dept}) inicia vacaciones el {fmt_fecha(f_inicio)}. Requiere Examen Prevacacional urgente."
                     })
 
             dias_post_vac = (hoy - f_reintegro).days
@@ -234,7 +251,7 @@ def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
                 if not tiene_examen_post:
                     alertas_examenes.append({
                         "tipo": "Postvacacional",
-                        "mensaje": f"El trabajador {nombre} ({dept}) reingresó de vacaciones el {f_reintegro}. Pendiente Examen Postvacacional."
+                        "mensaje": f"El trabajador {nombre} ({dept}) reingresó de vacaciones el {fmt_fecha(f_reintegro)}. Pendiente Examen Postvacacional."
                     })
         except ValueError:
             pass
@@ -247,17 +264,30 @@ def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
             except ValueError:
                 pass
     
-    fecha_referencia = max(fechas_rutinarios) if fechas_rutinarios else (
+    fecha_base = max(fechas_rutinarios) if fechas_rutinarios else (
         datetime.strptime(worker["hire_date"], "%Y-%m-%d").date() if worker.get("hire_date") else None
     )
 
-    if fecha_referencia:
-        proximo_rutinario = fecha_referencia + timedelta(days=365)
-        dias_para_rutinario = (proximo_rutinario - hoy).days
-        if dias_para_rutinario <= 30:
+    if fecha_base:
+        try:
+            proximo_aniversario = fecha_base.replace(year=hoy.year)
+            if proximo_aniversario < hoy:
+                proximo_aniversario = fecha_base.replace(year=hoy.year + 1)
+        except ValueError:
+            proximo_aniversario = fecha_base.replace(year=hoy.year, day=28) + timedelta(days=4)
+
+        dias_faltantes = (proximo_aniversario - hoy).days
+        fecha_aniversario_fmt = fmt_fecha(proximo_aniversario)
+
+        if 0 <= dias_faltantes <= 15:
             alertas_examenes.append({
                 "tipo": "Rutinario Anual",
-                "mensaje": f"El trabajador {nombre} ({dept}) tiene vencido o próximo a vencer su Examen Rutinario Anual (Fecha límite: {proximo_rutinario})."
+                "mensaje": f"El trabajador {nombre} ({dept}) cumple un año más en la empresa el {fecha_aniversario_fmt}. Le quedan {dias_faltantes} días para realizar su Examen Rutinario Anual."
+            })
+        elif (hoy - fecha_base).days >= 365:
+            alertas_examenes.append({
+                "tipo": "Rutinario Anual",
+                "mensaje": f"El trabajador {nombre} ({dept}) tiene vencido su Examen Rutinario Anual (Fecha límite: {fecha_aniversario_fmt})."
             })
 
     return alertas_examenes
@@ -276,16 +306,13 @@ def login_view(request: Request):
     return templates.TemplateResponse(request=request, name="login.html")
 
 @app.post("/api/auth/login")
-def login_api(username: str = Form(...), password: str = Form(...), response: Response = None):
-    db = SessionLocal()
+def login_api(username: str = Form(...), password: str = Form(...), response: Response = None, db: Session = Depends(get_db)):
     user = db.query(UserModel).filter(UserModel.username == username.lower().strip()).first()
     if not user or user.password != password:
-        db.close()
         raise HTTPException(status_code=400, detail="Nombre de usuario o contraseña incorrectos.")
     
     res = RedirectResponse(url="/", status_code=303)
     res.set_cookie(key="session_user", value=user.username, httponly=True)
-    db.close()
     return res
 
 @app.get("/logout")
@@ -299,13 +326,12 @@ def register_user(
     username: str = Form(...),
     password: str = Form(...),
     security_question: str = Form(...),
-    security_answer: str = Form(...)
+    security_answer: str = Form(...),
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
     uname = username.lower().strip()
     existente = db.query(UserModel).filter(UserModel.username == uname).first()
     if existente:
-        db.close()
         raise HTTPException(status_code=400, detail="El nombre de usuario ya se encuentra registrado.")
     
     nuevo_usuario = UserModel(
@@ -317,53 +343,43 @@ def register_user(
     )
     db.add(nuevo_usuario)
     db.commit()
-    db.close()
     return {"message": "Usuario registrado exitosamente."}
 
 @app.get("/api/auth/get-security-question/{username}")
-def get_security_question(username: str):
-    db = SessionLocal()
+def get_security_question(username: str, db: Session = Depends(get_db)):
     uname = username.lower().strip()
     user = db.query(UserModel).filter(UserModel.username == uname).first()
     if not user:
-        db.close()
         raise HTTPException(status_code=404, detail="El usuario no se encuentra registrado.")
     pregunta = user.security_question or "Pregunta no configurada."
-    db.close()
     return {"security_question": pregunta}
 
 @app.post("/api/auth/recover")
 def recover_password(
     username: str = Form(...),
     security_answer: str = Form(...),
-    new_password: str = Form(...)
+    new_password: str = Form(...),
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
     uname = username.lower().strip()
     user = db.query(UserModel).filter(UserModel.username == uname).first()
     if not user:
-        db.close()
         raise HTTPException(status_code=404, detail="El usuario especificado no existe.")
     
     if user.security_answer != security_answer.lower().strip():
-        db.close()
         raise HTTPException(status_code=400, detail="La respuesta a la pregunta de seguridad es incorrecta.")
     
     user.password = new_password
     db.commit()
-    db.close()
     return {"message": "Contraseña actualizada exitosamente."}
 
 @app.get("/")
-def home(request: Request):
-    db = SessionLocal()
+def home(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
-        db.close()
         return RedirectResponse(url="/login")
     alertas_contratos = obtener_alertas_contrato(db)
     alertas_examenes = obtener_alertas_examenes(db)
-    db.close()
     return templates.TemplateResponse(
         request=request, 
         name="worker_profile.html", 
@@ -375,10 +391,8 @@ def home(request: Request):
     )
 
 @app.get("/register")
-def register_page(request: Request):
-    db = SessionLocal()
+def register_page(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
-    db.close()
     if not user:
         return RedirectResponse(url="/login")
     
@@ -388,20 +402,16 @@ def register_page(request: Request):
     return templates.TemplateResponse(request=request, name="register_worker.html", context={"current_user": user})
 
 @app.get("/users")
-def users_management_page(request: Request):
-    db = SessionLocal()
+def users_management_page(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
-    db.close()
     if not user or user["role"] not in ["Webmaster", "Coordinador"]:
         return RedirectResponse(url="/")
     return templates.TemplateResponse(request=request, name="user_management.html", context={"current_user": user})
 
 @app.get("/api/users/list")
-def list_users(request: Request):
-    db = SessionLocal()
+def list_users(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
     if not user or user["role"] not in ["Webmaster", "Coordinador"]:
-        db.close()
         raise HTTPException(status_code=403, detail="Acceso denegado a la gestión de usuarios.")
     
     users = db.query(UserModel).all()
@@ -414,56 +424,44 @@ def list_users(request: Request):
             "role": u.role,
             "security_question": u.security_question
         })
-    db.close()
     return users_list
 
 @app.put("/api/users/update-role")
-def update_user_role(username: str = Form(...), new_role: str = Form(...), request: Request = None):
-    db = SessionLocal()
+def update_user_role(username: str = Form(...), new_role: str = Form(...), request: Request = None, db: Session = Depends(get_db)):
     current = get_current_user(request, db)
     if not current or current["role"] not in ["Webmaster", "Coordinador"]:
-        db.close()
         raise HTTPException(status_code=403, detail="Acceso denegado.")
     
     target_user = db.query(UserModel).filter(UserModel.username == username.lower().strip()).first()
     if not target_user:
-        db.close()
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
     
     target_user.role = new_role
     db.commit()
-    db.close()
     return {"message": f"El rol de {username} ha sido actualizado a {new_role}."}
 
 @app.delete("/api/users/delete/{username}")
-def delete_user(username: str, request: Request):
-    db = SessionLocal()
+def delete_user(username: str, request: Request, db: Session = Depends(get_db)):
     current = get_current_user(request, db)
     if not current or current["role"] not in ["Webmaster", "Coordinador"]:
-        db.close()
         raise HTTPException(status_code=403, detail="Acceso denegado.")
     
     uname = username.lower().strip()
     target_user = db.query(UserModel).filter(UserModel.username == uname).first()
     
     if not target_user:
-        db.close()
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
     
     if target_user.role == "Webmaster":
-        db.close()
         raise HTTPException(status_code=400, detail="La cuenta principal de Webmaster no puede ser eliminada.")
     
     db.delete(target_user)
     db.commit()
-    db.close()
     return {"message": f"El usuario '{username}' ha sido eliminado exitosamente."}
 
 @app.get("/api/dashboard/stats")
-def get_dashboard_stats():
-    db = SessionLocal()
+def get_dashboard_stats(db: Session = Depends(get_db)):
     workers_dict = obtener_workers_db(db)
-    db.close()
 
     if not workers_dict:
         return {
@@ -558,11 +556,9 @@ def get_dashboard_stats():
     }
 
 @app.get("/api/workers/search/{cedula}")
-def search_worker(cedula: str):
-    db = SessionLocal()
+def search_worker(cedula: str, db: Session = Depends(get_db)):
     cedula_limpia = cedula.upper().strip()
     record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
-    db.close()
     if not record:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado")
     
@@ -620,13 +616,12 @@ async def create_worker(
     vacations_json: str = Form("[]"),
     risk_notifications_json: str = Form("[]"),
     medical_exams_json: str = Form("[]"),
-    photo_file: Optional[UploadFile] = File(None)
+    photo_file: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
     cedula_limpia = cedula.upper().strip()
     existente = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
     if existente:
-        db.close()
         raise HTTPException(status_code=400, detail="La cédula ya se encuentra registrada.")
 
     photo_url = "/static/uploads/default_avatar.png"
@@ -696,7 +691,6 @@ async def create_worker(
     record = WorkerModel(cedula=cedula_limpia, data=json.dumps(new_worker_dict, ensure_ascii=False))
     db.add(record)
     db.commit()
-    db.close()
     return {"message": "Trabajador registrado exitosamente", "cedula": cedula_limpia}
 
 @app.put("/api/workers/update/{cedula}")
@@ -744,13 +738,12 @@ async def update_worker(
     disability_condition: str = Form(""),
     pathologies_json: str = Form("[]"),
     risk_notifications_json: str = Form("[]"),
-    photo_file: Optional[UploadFile] = File(None)
+    photo_file: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
     cedula_limpia = cedula.upper().strip()
     record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
     if not record:
-        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
 
     worker = json.loads(record.data)
@@ -818,16 +811,13 @@ async def update_worker(
 
     record.data = json.dumps(worker, ensure_ascii=False)
     db.commit()
-    db.close()
     return {"message": "Expediente actualizado exitosamente"}
 
 @app.post("/api/workers/add-medical-exam/{cedula}")
-def add_medical_exam(cedula: str, exam: MedicalExamSchema):
-    db = SessionLocal()
+def add_medical_exam(cedula: str, exam: MedicalExamSchema, db: Session = Depends(get_db)):
     cedula_limpia = cedula.upper().strip()
     record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
     if not record:
-        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
     worker = json.loads(record.data)
@@ -837,16 +827,13 @@ def add_medical_exam(cedula: str, exam: MedicalExamSchema):
     worker["medical_exams"].append(exam.dict())
     record.data = json.dumps(worker, ensure_ascii=False)
     db.commit()
-    db.close()
     return {"message": f"Examen preventivo '{exam.tipo_examen}' registrado exitosamente."}
 
 @app.post("/api/workers/add-vacation/{cedula}")
-def add_vacation(cedula: str, vacation: VacationSchema):
-    db = SessionLocal()
+def add_vacation(cedula: str, vacation: VacationSchema, db: Session = Depends(get_db)):
     cedula_limpia = cedula.upper().strip()
     record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
     if not record:
-        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
     worker = json.loads(record.data)
@@ -856,16 +843,13 @@ def add_vacation(cedula: str, vacation: VacationSchema):
     worker["vacations"].append(vacation.dict())
     record.data = json.dumps(worker, ensure_ascii=False)
     db.commit()
-    db.close()
     return {"message": "Período vacacional registrado exitosamente"}
 
 @app.post("/api/workers/add-risk/{cedula}")
-def add_risk_notification(cedula: str, risk: RiskSchema):
-    db = SessionLocal()
+def add_risk_notification(cedula: str, risk: RiskSchema, db: Session = Depends(get_db)):
     cedula_limpia = cedula.upper().strip()
     record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
     if not record:
-        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
     worker = json.loads(record.data)
@@ -875,16 +859,13 @@ def add_risk_notification(cedula: str, risk: RiskSchema):
     worker["risk_notifications"].append(risk.dict())
     record.data = json.dumps(worker, ensure_ascii=False)
     db.commit()
-    db.close()
     return {"message": "Notificación de riesgo registrada exitosamente"}
 
 @app.post("/api/workers/discharge/{cedula}")
-def discharge_worker(cedula: str):
-    db = SessionLocal()
+def discharge_worker(cedula: str, db: Session = Depends(get_db)):
     cedula_limpia = cedula.upper().strip()
     record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
     if not record:
-        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
     worker = json.loads(record.data)
@@ -893,16 +874,13 @@ def discharge_worker(cedula: str):
     worker["leave_reason"] = ""
     record.data = json.dumps(worker, ensure_ascii=False)
     db.commit()
-    db.close()
     return {"message": "Trabajador dado de alta exitosamente"}
 
 @app.post("/api/workers/add-event/{cedula}")
-def add_event(cedula: str, event: EventSchema):
-    db = SessionLocal()
+def add_event(cedula: str, event: EventSchema, db: Session = Depends(get_db)):
     cedula_limpia = cedula.upper().strip()
     record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
     if not record:
-        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
     worker = json.loads(record.data)
@@ -918,28 +896,22 @@ def add_event(cedula: str, event: EventSchema):
     
     record.data = json.dumps(worker, ensure_ascii=False)
     db.commit()
-    db.close()
     return {"message": "Evento registrado exitosamente"}
 
 @app.delete("/api/workers/delete/{cedula}")
-def delete_worker(cedula: str):
-    db = SessionLocal()
+def delete_worker(cedula: str, db: Session = Depends(get_db)):
     cedula_limpia = cedula.upper().strip()
     record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
     if not record:
-        db.close()
         raise HTTPException(status_code=404, detail="Trabajador no encontrado para eliminar")
     
     db.delete(record)
     db.commit()
-    db.close()
     return {"message": f"Trabajador C.I. {cedula_limpia} eliminado correctamente."}
 
 @app.get("/api/workers/export/excel")
-def export_excel():
-    db = SessionLocal()
+def export_excel(db: Session = Depends(get_db)):
     workers_dict = obtener_workers_db(db)
-    db.close()
 
     if not workers_dict:
         raise HTTPException(
@@ -960,16 +932,16 @@ def export_excel():
             "Departamento": w.get("department", ""),
             "Área": w.get("area", "Operativo"),
             "Condición Laboral": w.get("employment_type", "Fijo"),
-            "Vencimiento Contrato": w.get("contract_end_date", "N/A"),
+            "Vencimiento Contrato": fmt_fecha(w.get("contract_end_date")),
             "Talla Camisa": w.get("shirt_size", ""),
             "Talla Pantalón": w.get("pants_size", ""),
             "Talla Calzado": w.get("shoe_size", ""),
             "Talla Braga/Bata": w.get("overall_size", ""),
             "Usa Lentes": w.get("uses_glasses", "No"),
-            "Fecha Ingreso": w.get("hire_date", ""),
-            "Fecha Egreso": w.get("exit_date", ""),
+            "Fecha Ingreso": fmt_fecha(w.get("hire_date")),
+            "Fecha Egreso": fmt_fecha(w.get("exit_date")),
             "Tiempo Servicio": w.get("service_time", ""),
-            "Última Dotación": w.get("last_dotation_date", ""),
+            "Última Dotación": fmt_fecha(w.get("last_dotation_date")),
             "Estatus Dotación": w.get("dotation_status", ""),
             "Pendientes Dotación": w.get("dotation_comments", "")
         })
@@ -985,11 +957,9 @@ def export_excel():
     )
 
 @app.get("/api/workers/export/pdf/{cedula}")
-def export_pdf(cedula: str):
-    db = SessionLocal()
+def export_pdf(cedula: str, db: Session = Depends(get_db)):
     cedula_limpia = cedula.upper().strip()
     record = db.query(WorkerModel).filter(WorkerModel.cedula == cedula_limpia).first()
-    db.close()
     if not record:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
 
@@ -1005,10 +975,10 @@ def export_pdf(cedula: str):
     c.drawString(50, 730, f"Cédula: {worker['cedula']} | Código: {worker['worker_code']}")
     c.drawString(50, 715, f"Nombre Completo: {worker['first_name']} {worker['last_name']} | Género: {worker.get('gender', 'N/A')}")
     c.drawString(50, 700, f"Cargo: {worker['position']} | Dept: {worker['department']} | Área: {worker.get('area', 'N/A')}")
-    c.drawString(50, 685, f"Condición: {worker.get('employment_type','Fijo')} | Fin Contrato: {worker.get('contract_end_date','N/A')}")
+    c.drawString(50, 685, f"Condición: {worker.get('employment_type','Fijo')} | Fin Contrato: {fmt_fecha(worker.get('contract_end_date'))}")
     c.drawString(50, 670, f"Tallas Uniforme -> Camisa: {worker.get('shirt_size','-')} | Pantalón: {worker.get('pants_size','-')} | Calzado: {worker.get('shoe_size','-')} | Braga: {worker.get('overall_size','-')}")
     c.drawString(50, 655, f"Estatus Actual: {evaluar_estatus_trabajador(worker)} | Usa Lentes: {worker.get('uses_glasses', 'No')}")
-    c.drawString(50, 640, f"Última Dotación: {worker.get('last_dotation_date', 'N/A')} ({worker.get('dotation_status', 'Completa')}) - {worker.get('dotation_comments', 'Sin pendientes')}")
+    c.drawString(50, 640, f"Última Dotación: {fmt_fecha(worker.get('last_dotation_date'))} ({worker.get('dotation_status', 'Completa')}) - {worker.get('dotation_comments', 'Sin pendientes')}")
     
     c.drawString(50, 610, f"Contacto Emergencia: {worker['emergency_contact']['name']} ({worker['emergency_contact']['kinship']}) - {worker['emergency_contact']['phone']}")
     c.drawString(50, 595, f"Tipo de Sangre: {worker['blood_type']} | Alergias: {worker['allergies_meds']}")
