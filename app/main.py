@@ -22,7 +22,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import uvicorn
 
-# --- CONFIGURACIÓN OPTIMIZADA DE BASE DE DATOS NEON TECH (SQLAlchemy) ---
+# --- CONFIGURACIÓN DE BASE DE DATOS NEON TECH (SQLAlchemy) ---
 from sqlalchemy import create_engine, Column, String, Boolean, Integer, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -73,17 +73,31 @@ def get_db():
     finally:
         db.close()
 
-# Función formateadora robusta para transformar cualquier fecha a DD/MM/YYYY
+# --- FUNCIONES DE MANEJO DE FECHAS EN FORMATO DD/MM/YYYY ---
+
+def parse_fecha(fecha_str: Optional[str]) -> Optional[date]:
+    """Convierte una cadena en formato DD/MM/YYYY (o YYYY-MM-DD por compatibilidad) a objeto date."""
+    if not fecha_str or not str(fecha_str).strip():
+        return None
+    val = str(fecha_str).strip()
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(val, fmt).date()
+        except ValueError:
+            pass
+    return None
+
 def fmt_fecha(fecha_val: Any) -> str:
+    """Transforma cualquier valor de fecha a cadena estricta DD/MM/YYYY."""
     if not fecha_val:
-        return "N/A"
-    try:
-        if hasattr(fecha_val, "strftime"):
-            return fecha_val.strftime("%d/%m/%Y")
-        dt = datetime.strptime(str(fecha_val).strip(), "%Y-%m-%d")
+        return ""
+    if isinstance(fecha_val, (date, datetime)):
+        return fecha_val.strftime("%d/%m/%Y")
+    
+    dt = parse_fecha(str(fecha_val))
+    if dt:
         return dt.strftime("%d/%m/%Y")
-    except Exception:
-        return str(fecha_val)
+    return str(fecha_val)
 
 # Crear usuario Webmaster inicial si la base de datos está vacía
 def inicializar_webmaster():
@@ -104,25 +118,25 @@ def inicializar_webmaster():
 inicializar_webmaster()
 
 class EventSchema(BaseModel):
-    fecha: Optional[str] = ""
-    tipo: Optional[str] = ""
+    fecha: str  # Formato DD/MM/YYYY obligatorio
+    tipo: str   # Accidente Laboral, Reposo Médico, Incidentes, etc.
     descripcion: str
     rest_days: Optional[int] = 0
     is_reposo: Optional[bool] = False
 
 class VacationSchema(BaseModel):
-    fecha_inicio: str
-    fecha_reintegro: str
+    fecha_inicio: str     # Formato DD/MM/YYYY
+    fecha_reintegro: str  # Formato DD/MM/YYYY
     dias_vacaciones: Optional[int] = 0
     observacion: Optional[str] = ""
 
 class RiskSchema(BaseModel):
-    fecha: str
+    fecha: str  # Formato DD/MM/YYYY
     puesto: str
     descripcion_riesgo: str
 
 class MedicalExamSchema(BaseModel):
-    fecha: str
+    fecha: str  # Formato DD/MM/YYYY
     tipo_examen: str
     resultado: Optional[str] = "Apto"
     observaciones: Optional[str] = ""
@@ -149,23 +163,19 @@ def calcular_dias_sin_reposo(worker: dict) -> int:
     fechas_reposo = []
     for ev in worker.get("medical_events", []):
         if ev.get("tipo") == "Reposo Médico" and ev.get("fecha"):
-            try:
-                dt = datetime.strptime(ev["fecha"], "%Y-%m-%d")
+            dt = parse_fecha(ev["fecha"])
+            if dt:
                 fechas_reposo.append(dt)
-            except ValueError:
-                pass
     
+    hoy = datetime.now().date()
     if fechas_reposo:
         ultima_fecha = max(fechas_reposo)
-        dias = (datetime.now() - ultima_fecha).days
-        return max(dias, 0)
+        return max((hoy - ultima_fecha).days, 0)
     
     if worker.get("hire_date"):
-        try:
-            dt_ingreso = datetime.strptime(worker["hire_date"], "%Y-%m-%d")
-            return max((datetime.now() - dt_ingreso).days, 0)
-        except ValueError:
-            pass
+        dt_ingreso = parse_fecha(worker["hire_date"])
+        if dt_ingreso:
+            return max((hoy - dt_ingreso).days, 0)
             
     return 0
 
@@ -177,13 +187,10 @@ def evaluar_estatus_trabajador(worker: dict) -> str:
     
     hoy = datetime.now().date()
     for vac in worker.get("vacations", []):
-        try:
-            inicio = datetime.strptime(vac["fecha_inicio"], "%Y-%m-%d").date()
-            reintegro = datetime.strptime(vac["fecha_reintegro"], "%Y-%m-%d").date()
-            if inicio <= hoy < reintegro:
-                return "DE VACACIONES"
-        except ValueError:
-            pass
+        inicio = parse_fecha(vac.get("fecha_inicio"))
+        reintegro = parse_fecha(vac.get("fecha_reintegro"))
+        if inicio and reintegro and (inicio <= hoy < reintegro):
+            return "DE VACACIONES"
             
     return "ACTIVO"
 
@@ -203,8 +210,8 @@ def obtener_alertas_contrato(db: Session) -> List[str]:
     workers = obtener_workers_db(db)
     for w in workers.values():
         if w.get("employment_type") == "Contratado" and w.get("contract_end_date"):
-            try:
-                dt_fin = datetime.strptime(w["contract_end_date"], "%Y-%m-%d").date()
+            dt_fin = parse_fecha(w["contract_end_date"])
+            if dt_fin:
                 dias_restantes = (dt_fin - hoy).days
                 if 0 <= dias_restantes <= 10:
                     nombre_completo = f"{w.get('first_name', '')} {w.get('last_name', '')}".strip()
@@ -215,8 +222,6 @@ def obtener_alertas_contrato(db: Session) -> List[str]:
                     else:
                         msg = f"El Trabajador {nombre_completo}, perteneciente al Departamento {dept}, le quedan {dias_restantes} días para vencer el contrato ({fecha_fmt})."
                     alertas.append(msg)
-            except ValueError:
-                pass
     return alertas
 
 def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
@@ -228,16 +233,16 @@ def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
         examenes_realizados = worker.get("medical_exams", [])
 
         for vac in worker.get("vacations", []):
-            try:
-                f_inicio = datetime.strptime(vac["fecha_inicio"], "%Y-%m-%d").date()
-                f_reintegro = datetime.strptime(vac["fecha_reintegro"], "%Y-%m-%d").date()
+            f_inicio = parse_fecha(vac.get("fecha_inicio"))
+            f_reintegro = parse_fecha(vac.get("fecha_reintegro"))
 
+            if f_inicio:
                 dias_para_vac = (f_inicio - hoy).days
                 if 0 <= dias_para_vac <= 15:
                     tiene_examen = any(
-                        e.get("tipo_examen") == "Prevacacional" and
-                        abs((datetime.strptime(e["fecha"], "%Y-%m-%d").date() - f_inicio).days) <= 30
-                        for e in examenes_realizados if e.get("fecha")
+                        e.get("tipo_examen") == "Prevacacional" and parse_fecha(e.get("fecha")) and
+                        abs((parse_fecha(e["fecha"]) - f_inicio).days) <= 30
+                        for e in examenes_realizados
                     )
                     if not tiene_examen:
                         alertas_examenes.append({
@@ -245,37 +250,23 @@ def evaluar_examenes_pendientes(worker: dict) -> List[Dict[str, str]]:
                             "mensaje": f"El trabajador {nombre} ({dept}) inicia vacaciones el {fmt_fecha(f_inicio)}. Requiere Examen Prevacacional urgente."
                         })
 
+            if f_reintegro:
                 dias_post_vac = (hoy - f_reintegro).days
                 if -2 <= dias_post_vac <= 10:
                     tiene_examen_post = any(
-                        e.get("tipo_examen") == "Postvacacional" and
-                        abs((datetime.strptime(e["fecha"], "%Y-%m-%d").date() - f_reintegro).days) <= 15
-                        for e in examenes_realizados if e.get("fecha")
+                        e.get("tipo_examen") == "Postvacacional" and parse_fecha(e.get("fecha")) and
+                        abs((parse_fecha(e["fecha"]) - f_reintegro).days) <= 15
+                        for e in examenes_realizados
                     )
                     if not tiene_examen_post:
                         alertas_examenes.append({
                             "tipo": "Postvacacional",
                             "mensaje": f"El trabajador {nombre} ({dept}) reingresó de vacaciones el {fmt_fecha(f_reintegro)}. Pendiente Examen Postvacacional."
                         })
-            except ValueError:
-                pass
 
-        fechas_rutinarios = []
-        for e in examenes_realizados:
-            if e.get("tipo_examen") == "Rutinario Anual" and e.get("fecha"):
-                try:
-                    fechas_rutinarios.append(datetime.strptime(e["fecha"], "%Y-%m-%d").date())
-                except ValueError:
-                    pass
+        fechas_rutinarios = [parse_fecha(e["fecha"]) for e in examenes_realizados if e.get("tipo_examen") == "Rutinario Anual" and parse_fecha(e.get("fecha"))]
         
-        fecha_base = None
-        if fechas_rutinarios:
-            fecha_base = max(fechas_rutinarios)
-        elif worker.get("hire_date"):
-            try:
-                fecha_base = datetime.strptime(worker["hire_date"], "%Y-%m-%d").date()
-            except ValueError:
-                fecha_base = None
+        fecha_base = max(fechas_rutinarios) if fechas_rutinarios else parse_fecha(worker.get("hire_date"))
 
         if fecha_base:
             try:
@@ -507,8 +498,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     total_discapacidad = sum(1 for w in workers_dict.values() if w.get("disability_condition") and w.get("disability_condition").strip().lower() != "ninguna")
     total_cronicas = sum(1 for w in workers_dict.values() if len(w.get("pathologies", [])) > 0 or (w.get("chronic_treatment") and w.get("chronic_treatment").strip().lower() != "ninguno"))
 
-    fechas_accidentes_empresa = []
-    accidentes_por_gerencia: Dict[str, List[datetime]] = {}
+    fechas_accidentes_empresa: List[date] = []
+    accidentes_por_gerencia: Dict[str, List[date]] = {}
     departamentos_existentes = set()
 
     for w in workers_dict.values():
@@ -520,15 +511,13 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
 
         for ev in w.get("medical_events", []):
             if ev.get("tipo") == "Accidente Laboral" and ev.get("fecha"):
-                try:
-                    dt = datetime.strptime(ev["fecha"], "%Y-%m-%d")
+                dt = parse_fecha(ev["fecha"])
+                if dt:
                     fechas_accidentes_empresa.append(dt)
                     if dept:
                         accidentes_por_gerencia[dept].append(dt)
-                except ValueError:
-                    pass
 
-    hoy = datetime.now()
+    hoy = datetime.now().date()
     dias_sin_accidentes_empresa = (hoy - max(fechas_accidentes_empresa)).days if fechas_accidentes_empresa else 0
 
     stats_gerencias = []
@@ -574,6 +563,27 @@ def search_worker(cedula: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Trabajador no encontrado")
     
     worker = json.loads(record.data)
+    
+    # Formatear todas las fechas almacenadas a DD/MM/YYYY antes de enviar la respuesta
+    worker["birthdate"] = fmt_fecha(worker.get("birthdate"))
+    worker["hire_date"] = fmt_fecha(worker.get("hire_date"))
+    worker["contract_end_date"] = fmt_fecha(worker.get("contract_end_date"))
+    worker["exit_date"] = fmt_fecha(worker.get("exit_date"))
+    worker["last_dotation_date"] = fmt_fecha(worker.get("last_dotation_date"))
+
+    for ev in worker.get("medical_events", []):
+        ev["fecha"] = fmt_fecha(ev.get("fecha"))
+
+    for vac in worker.get("vacations", []):
+        vac["fecha_inicio"] = fmt_fecha(vac.get("fecha_inicio"))
+        vac["fecha_reintegro"] = fmt_fecha(vac.get("fecha_reintegro"))
+
+    for rk in worker.get("risk_notifications", []):
+        rk["fecha"] = fmt_fecha(rk.get("fecha"))
+
+    for ex in worker.get("medical_exams", []):
+        ex["fecha"] = fmt_fecha(ex.get("fecha"))
+
     worker["days_without_rest"] = calcular_dias_sin_reposo(worker)
     worker["calculated_status"] = evaluar_estatus_trabajador(worker)
     worker["pending_exams"] = evaluar_examenes_pendientes(worker)
@@ -584,22 +594,17 @@ def procesar_y_guardar_foto(photo_file: Optional[UploadFile], cedula_limpia: str
         return "/static/uploads/default_avatar.png"
     
     try:
-        # 1. Leer la imagen subida en memoria
         image_bytes = photo_file.file.read()
         img = Image.open(io.BytesIO(image_bytes))
 
-        # 2. Convertir modos RGBA o PNG a RGB para guardar en WebP
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
 
-        # 3. Redimensionar manteniendo proporciones (Máximo 400x400 px)
         img.thumbnail((400, 400))
 
-        # 4. Crear el nombre y la ruta del archivo .webp
         filename = f"photo_{cedula_limpia}.webp"
         filepath = base_dir / "static/uploads" / filename
 
-        # 5. Guardar comprimido a WebP con 75% de calidad
         img.save(filepath, "WEBP", quality=75, optimize=True)
 
         return f"/static/uploads/{filename}"
@@ -670,7 +675,7 @@ async def create_worker(
         "first_name": first_name,
         "last_name": last_name,
         "gender": gender,
-        "birthdate": birthdate,
+        "birthdate": fmt_fecha(birthdate),
         "phone": phone,
         "email": email,
         "address": address,
@@ -690,11 +695,11 @@ async def create_worker(
         "area": area,
         "supervisor": supervisor,
         "employment_type": employment_type,
-        "hire_date": hire_date,
-        "contract_end_date": contract_end_date if employment_type == "Contratado" else "",
-        "exit_date": exit_date,
+        "hire_date": fmt_fecha(hire_date),
+        "contract_end_date": fmt_fecha(contract_end_date) if employment_type == "Contratado" else "",
+        "exit_date": fmt_fecha(exit_date),
         "service_time": service_time,
-        "last_dotation_date": last_dotation_date,
+        "last_dotation_date": fmt_fecha(last_dotation_date),
         "dotation_status": dotation_status,
         "dotation_comments": dotation_comments,
         "education_level": education_level,
@@ -782,7 +787,7 @@ async def update_worker(
     worker["first_name"] = first_name
     worker["last_name"] = last_name
     worker["gender"] = gender
-    worker["birthdate"] = birthdate
+    worker["birthdate"] = fmt_fecha(birthdate)
     worker["phone"] = phone
     worker["email"] = email
     worker["address"] = address
@@ -805,12 +810,12 @@ async def update_worker(
     worker["area"] = area
     worker["supervisor"] = supervisor
     worker["employment_type"] = employment_type
-    worker["hire_date"] = hire_date
-    worker["contract_end_date"] = contract_end_date if employment_type == "Contratado" else ""
-    worker["exit_date"] = exit_date
+    worker["hire_date"] = fmt_fecha(hire_date)
+    worker["contract_end_date"] = fmt_fecha(contract_end_date) if employment_type == "Contratado" else ""
+    worker["exit_date"] = fmt_fecha(exit_date)
     worker["service_time"] = service_time
 
-    worker["last_dotation_date"] = last_dotation_date
+    worker["last_dotation_date"] = fmt_fecha(last_dotation_date)
     worker["dotation_status"] = dotation_status
     worker["dotation_comments"] = dotation_comments
 
@@ -831,6 +836,8 @@ async def update_worker(
     
     nuevos_riesgos = json.loads(risk_notifications_json)
     if nuevos_riesgos:
+        for rk in nuevos_riesgos:
+            rk["fecha"] = fmt_fecha(rk.get("fecha"))
         worker["risk_notifications"] = nuevos_riesgos
 
     if photo_file and photo_file.filename:
@@ -851,7 +858,10 @@ def add_medical_exam(cedula: str, exam: MedicalExamSchema, db: Session = Depends
     if "medical_exams" not in worker:
         worker["medical_exams"] = []
     
-    worker["medical_exams"].append(exam.dict())
+    exam_dict = exam.dict()
+    exam_dict["fecha"] = fmt_fecha(exam_dict["fecha"])
+    worker["medical_exams"].append(exam_dict)
+    
     record.data = json.dumps(worker, ensure_ascii=False)
     db.commit()
     return {"message": f"Examen preventivo '{exam.tipo_examen}' registrado exitosamente."}
@@ -867,7 +877,11 @@ def add_vacation(cedula: str, vacation: VacationSchema, db: Session = Depends(ge
     if "vacations" not in worker:
         worker["vacations"] = []
     
-    worker["vacations"].append(vacation.dict())
+    vac_dict = vacation.dict()
+    vac_dict["fecha_inicio"] = fmt_fecha(vac_dict["fecha_inicio"])
+    vac_dict["fecha_reintegro"] = fmt_fecha(vac_dict["fecha_reintegro"])
+    
+    worker["vacations"].append(vac_dict)
     record.data = json.dumps(worker, ensure_ascii=False)
     db.commit()
     return {"message": "Período vacacional registrado exitosamente"}
@@ -883,7 +897,10 @@ def add_risk_notification(cedula: str, risk: RiskSchema, db: Session = Depends(g
     if "risk_notifications" not in worker:
         worker["risk_notifications"] = []
     
-    worker["risk_notifications"].append(risk.dict())
+    risk_dict = risk.dict()
+    risk_dict["fecha"] = fmt_fecha(risk_dict["fecha"])
+    
+    worker["risk_notifications"].append(risk_dict)
     record.data = json.dumps(worker, ensure_ascii=False)
     db.commit()
     return {"message": "Notificación de riesgo registrada exitosamente"}
@@ -910,11 +927,21 @@ def add_event(cedula: str, event: EventSchema, db: Session = Depends(get_db)):
     if not record:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado.")
     
+    if not event.fecha:
+        raise HTTPException(status_code=400, detail="La fecha del evento es obligatoria.")
+    
+    parsed = parse_fecha(event.fecha)
+    if not parsed:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Utilice DD/MM/YYYY.")
+
     worker = json.loads(record.data)
     if "medical_events" not in worker:
         worker["medical_events"] = []
 
-    worker["medical_events"].append(event.dict())
+    ev_dict = event.dict()
+    ev_dict["fecha"] = fmt_fecha(parsed)
+
+    worker["medical_events"].append(ev_dict)
 
     if event.is_reposo and event.tipo == "Reposo Médico":
         worker["is_on_leave"] = True
@@ -923,7 +950,7 @@ def add_event(cedula: str, event: EventSchema, db: Session = Depends(get_db)):
     
     record.data = json.dumps(worker, ensure_ascii=False)
     db.commit()
-    return {"message": "Evento registrado exitosamente"}
+    return {"message": "Evento o accidente registrado exitosamente"}
 
 @app.delete("/api/workers/delete/{cedula}")
 def delete_worker(cedula: str, db: Session = Depends(get_db)):
