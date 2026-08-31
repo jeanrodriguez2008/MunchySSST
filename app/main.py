@@ -6,6 +6,9 @@ from pathlib import Path
 from datetime import datetime, timedelta, date
 from collections import Counter
 
+import io
+from PIL import Image
+
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile, Response, status, Depends
@@ -576,6 +579,34 @@ def search_worker(cedula: str, db: Session = Depends(get_db)):
     worker["pending_exams"] = evaluar_examenes_pendientes(worker)
     return worker
 
+def procesar_y_guardar_foto(photo_file: Optional[UploadFile], cedula_limpia: str, base_dir: Path) -> str:
+    if not photo_file or not photo_file.filename:
+        return "/static/uploads/default_avatar.png"
+    
+    try:
+        # 1. Leer la imagen subida en memoria
+        image_bytes = photo_file.file.read()
+        img = Image.open(io.BytesIO(image_bytes))
+
+        # 2. Convertir modos RGBA o PNG a RGB para guardar en WebP
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+
+        # 3. Redimensionar manteniendo proporciones (Máximo 400x400 px)
+        img.thumbnail((400, 400))
+
+        # 4. Crear el nombre y la ruta del archivo .webp
+        filename = f"photo_{cedula_limpia}.webp"
+        filepath = base_dir / "static/uploads" / filename
+
+        # 5. Guardar comprimido a WebP con 75% de calidad
+        img.save(filepath, "WEBP", quality=75, optimize=True)
+
+        return f"/static/uploads/{filename}"
+    except Exception as e:
+        print(f"Error procesando imagen para cédula {cedula_limpia}: {e}")
+        return "/static/uploads/default_avatar.png"
+
 @app.post("/api/workers/create")
 async def create_worker(
     cedula: str = Form(...),
@@ -632,14 +663,7 @@ async def create_worker(
     if existente:
         raise HTTPException(status_code=400, detail="La cédula ya se encuentra registrada.")
 
-    photo_url = "/static/uploads/default_avatar.png"
-    if photo_file and photo_file.filename:
-        file_ext = Path(photo_file.filename).suffix
-        filename = f"photo_{cedula_limpia}{file_ext}"
-        filepath = BASE_DIR / "static/uploads" / filename
-        with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(photo_file.file, buffer)
-        photo_url = f"/static/uploads/{filename}"
+    photo_url = procesar_y_guardar_foto(photo_file, cedula_limpia, BASE_DIR)
 
     new_worker_dict = {
         "cedula": cedula_limpia,
@@ -810,12 +834,7 @@ async def update_worker(
         worker["risk_notifications"] = nuevos_riesgos
 
     if photo_file and photo_file.filename:
-        file_ext = Path(photo_file.filename).suffix
-        filename = f"photo_{cedula_limpia}{file_ext}"
-        filepath = BASE_DIR / "static/uploads" / filename
-        with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(photo_file.file, buffer)
-        worker["photo_url"] = f"/static/uploads/{filename}"
+        worker["photo_url"] = procesar_y_guardar_foto(photo_file, cedula_limpia, BASE_DIR)
 
     record.data = json.dumps(worker, ensure_ascii=False)
     db.commit()
