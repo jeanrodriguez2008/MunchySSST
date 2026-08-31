@@ -532,8 +532,10 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     patologias_lista = []
     for w in workers_dict.values():
         for p in w.get("pathologies", []):
-            if p.get("nombre"):
+            if isinstance(p, dict) and p.get("nombre"):
                 patologias_lista.append(p["nombre"].strip().title())
+            elif isinstance(p, str) and p.strip():
+                patologias_lista.append(p.strip().title())
     
     conteo = Counter(patologias_lista)
     top_3 = [{"nombre": k, "cantidad": v} for k, v in conteo.most_common(3)]
@@ -564,7 +566,6 @@ def search_worker(cedula: str, db: Session = Depends(get_db)):
     
     worker = json.loads(record.data)
     
-    # Formatear todas las fechas almacenadas a DD/MM/YYYY antes de enviar la respuesta
     worker["birthdate"] = fmt_fecha(worker.get("birthdate"))
     worker["hire_date"] = fmt_fecha(worker.get("hire_date"))
     worker["contract_end_date"] = fmt_fecha(worker.get("contract_end_date"))
@@ -1034,8 +1035,12 @@ def export_pdf(cedula: str, db: Session = Depends(get_db)):
     c.drawString(50, 655, f"Estatus Actual: {evaluar_estatus_trabajador(worker)} | Usa Lentes: {worker.get('uses_glasses', 'No')}")
     c.drawString(50, 640, f"Última Dotación: {fmt_fecha(worker.get('last_dotation_date'))} ({worker.get('dotation_status', 'Completa')}) - {worker.get('dotation_comments', 'Sin pendientes')}")
     
-    c.drawString(50, 610, f"Contacto Emergencia: {worker['emergency_contact']['name']} ({worker['emergency_contact']['kinship']}) - {worker['emergency_contact']['phone']}")
-    c.drawString(50, 595, f"Tipo de Sangre: {worker['blood_type']} | Alergias: {worker['allergies_meds']}")
+    emergency_name = worker.get('emergency_contact', {}).get('name', 'N/A')
+    emergency_kinship = worker.get('emergency_contact', {}).get('kinship', 'N/A')
+    emergency_phone = worker.get('emergency_contact', {}).get('phone', 'N/A')
+    
+    c.drawString(50, 610, f"Contacto Emergencia: {emergency_name} ({emergency_kinship}) - {emergency_phone}")
+    c.drawString(50, 595, f"Tipo de Sangre: {worker.get('blood_type', 'N/A')} | Alergias: {worker.get('allergies_meds', 'Ninguna')}")
     
     c.save()
 
