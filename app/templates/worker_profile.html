@@ -692,6 +692,50 @@
         </div>
     </div>
 
+    <!-- MODAL REGISTRO DE EVENTO / REPOSO -->
+    <div class="modal fade" id="modalNuevoEvento" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-notes-medical me-2"></i>Registrar Evento o Reposo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formNuevoEvento" onsubmit="event.preventDefault(); guardarNuevoEvento();">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Fecha del Evento *</label>
+                            <input type="date" id="ev_date" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tipo de Evento *</label>
+                            <select id="ev_type" class="form-select" onchange="toggleReposoFields()" required>
+                                <option value="Accidente Laboral">Accidente Laboral</option>
+                                <option value="Incidente">Incidente</option>
+                                <option value="Reposo Médico">Reposo Médico</option>
+                                <option value="Consulta Ocupacional">Consulta Ocupacional</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="group_rest_days">
+                            <label class="form-label fw-bold">Días de Reposo Otorgados</label>
+                            <input type="number" id="ev_rest_days" class="form-control" min="0" value="0">
+                        </div>
+                        <div class="form-check mb-3" id="group_is_reposo">
+                            <input class="form-check-input" type="checkbox" id="ev_is_reposo" checked>
+                            <label class="form-check-label fw-bold text-danger" for="ev_is_reposo">
+                                Activar Estatus "EN REPOSO" en el Trabajador
+                            </label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Descripción / Diagnóstico *</label>
+                            <textarea id="ev_description" class="form-control" rows="3" required placeholder="Descripción detallada del incidente o diagnóstico médico..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger w-100 fw-bold">Guardar Evento</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL DE INFORME INTELIGENTE SSST -->
     <div class="modal fade" id="modalInformeInteligente" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
@@ -1001,7 +1045,7 @@
 
                                     <div class="col-md-6 mt-2">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <label class="form-label fw-bold mb-0 text-primary"><i class="fa-solid fa-award me-1"></i>Reconocimientos Otorgados</label>
+                                            <label class="form-label fw-bold mb-0 text-primary"><i class="fa-solid fa-award me-1"></i>Reconocimientos</label>
                                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarCampoEditReconocimiento()"><i class="fa-solid fa-plus me-1"></i>Agregar Campo</button>
                                         </div>
                                         <div id="editReconocimientosContainer"></div>
@@ -1013,8 +1057,8 @@
                             <div class="tab-pane fade" id="edit-medical">
                                 <div class="row g-3">
                                     <div class="col-md-3">
-                                        <label class="form-label fw-bold">Tipo de Sangre</label>
-                                        <select id="edit_blood_type" class="form-select">
+                                        <label class="form-label fw-bold">Tipo de Sangre *</label>
+                                        <select id="edit_blood_type" class="form-select" required>
                                             <option value="O+">O+</option>
                                             <option value="O-">O-</option>
                                             <option value="A+">A+</option>
@@ -1034,25 +1078,25 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Alergias (Medicamentos)</label>
-                                        <input type="text" id="edit_allergies_meds" class="form-control">
+                                        <input type="text" id="edit_allergies_meds" class="form-control" placeholder="Ninguna">
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label fw-bold">Alergias (Alimentos / Otros)</label>
-                                        <input type="text" id="edit_allergies_food" class="form-control">
+                                        <label class="form-label fw-bold">Alergias (Alimentos)</label>
+                                        <input type="text" id="edit_allergies_food" class="form-control" placeholder="Ninguna">
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label fw-bold">Tratamiento Enfermedades Crónicas</label>
-                                        <input type="text" id="edit_chronic_treatment" class="form-control">
+                                        <label class="form-label fw-bold">Tratamiento Crónico</label>
+                                        <input type="text" id="edit_chronic_treatment" class="form-control" placeholder="Ninguno">
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label fw-bold">Condición Discapacidad</label>
-                                        <input type="text" id="edit_disability_condition" class="form-control">
+                                        <label class="form-label fw-bold">Condición de Discapacidad</label>
+                                        <input type="text" id="edit_disability_condition" class="form-control" placeholder="Ninguna">
                                     </div>
 
                                     <div class="col-12 mt-3">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <label class="form-label fw-bold mb-0 text-danger"><i class="fa-solid fa-notes-medical me-1"></i>Historial de Patologías</label>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="agregarCampoEditPatologia()"><i class="fa-solid fa-plus me-1"></i>Agregar Campo</button>
+                                            <label class="form-label fw-bold mb-0 text-danger"><i class="fa-solid fa-notes-medical me-1"></i>Patologías Diagnosticas / Enfermedades Crónicas</label>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="agregarCampoEditPatologia()"><i class="fa-solid fa-plus me-1"></i>Agregar Patología</button>
                                         </div>
                                         <div id="editPatologiasContainer"></div>
                                     </div>
@@ -1061,9 +1105,9 @@
 
                         </div>
 
-                        <div class="d-flex justify-content-end gap-2 mt-4">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="submit" class="btn btn-warning fw-bold px-4"><i class="fa-solid fa-floppy-disk me-1"></i> Guardar Cambios</button>
+                        <div class="mt-4 text-end">
+                            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-warning fw-bold px-4">Guardar Cambios en Registro</button>
                         </div>
                     </form>
                 </div>
@@ -1071,155 +1115,929 @@
         </div>
     </div>
 
-    <!-- MODAL PARA REGISTRAR EVENTO O REPOSO MÉDICO -->
-    <div class="modal fade" id="modalNuevoEvento" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-notes-medical me-2"></i>Registrar Evento / Reposo</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="formEvento" onsubmit="event.preventDefault(); guardarNuevoEvento();">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Fecha del Evento *</label>
-                            <input type="date" id="event_date" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Tipo de Evento *</label>
-                            <select id="event_type" class="form-select" onchange="evaluarTipoEvento(this.value)" required>
-                                <option value="Consulta General">Consulta General / Ocupacional</option>
-                                <option value="Reposo Médico">Reposo Médico</option>
-                                <option value="Accidente Laboral">Accidente Laboral</option>
-                                <option value="Incidente">Incidente</option>
-                            </select>
-                        </div>
-                        
-                        <div id="reposoFieldsContainer" class="p-3 bg-light border rounded mb-3" style="display: none;">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold text-danger">Días de Reposo Otorgados *</label>
-                                <input type="number" id="rest_days" class="form-control" min="1" placeholder="Ej. 3">
-                            </div>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="is_active_reposo" checked>
-                                <label class="form-check-label fw-bold" for="is_active_reposo">Colocar trabajador EN REPOSO en tarjeta principal</label>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Diagnóstico / Descripción *</label>
-                            <textarea id="event_description" class="form-control" rows="3" required></textarea>
-                        </div>
-
-                        <div class="d-flex justify-content-end gap-2">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="submit" class="btn btn-danger"><i class="fa-solid fa-floppy-disk me-1"></i> Guardar Evento</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/search.js"></script>
-    <script>
-        function exportarInformePDFDirecto() {
-            const elemento = document.getElementById('informePdfContent');
-            
-            const opciones = {
-                margin:       0.4,
-                filename:     'Informe_Gestion_SSST_Alimentos_Munchy.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
 
-            html2pdf().set(opciones).from(elemento).output('bloburl').then(function(pdfUrl) {
-                window.open(pdfUrl, '_blank');
+    <script>
+        let currentWorkerData = null;
+        let chartGeneroInstance = null;
+        let chartAreasInstance = null;
+        let chartTopCronicasInstance = null;
+
+        let reportChartGenero = null;
+        let reportChartAreas = null;
+        let reportChartSalud = null;
+        let reportChartSeguridad = null;
+        let reportChartTopCronicas = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            cargarEstadisticasDashboard();
+        });
+
+        function parseFechaLocal(str) {
+            if (!str) return null;
+            const parts = str.split('/');
+            if (parts.length === 3) {
+                return new Date(parts[2], parts[1] - 1, parts[0]);
+            }
+            const isoParts = str.split('-');
+            if (isoParts.length === 3) {
+                return new Date(isoParts[0], isoParts[1] - 1, isoParts[2]);
+            }
+            return null;
+        }
+
+        function formatFechaIso(str) {
+            const dt = parseFechaLocal(str);
+            if (!dt) return "";
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, '0');
+            const d = String(dt.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        async function cargarEstadisticasDashboard() {
+            try {
+                const res = await fetch("/api/dashboard/stats");
+                if (!res.ok) return;
+                const data = await res.json();
+
+                document.getElementById("dashTotalTrabajadores").textContent = data.total_trabajadores;
+                document.getElementById("dashActivos").textContent = data.total_activos;
+                document.getElementById("dashReposo").textContent = data.total_reposo;
+                document.getElementById("dashDiasEmpresa").textContent = `${data.dias_sin_accidentes_empresa} Días`;
+                
+                document.getElementById("dashLentes").textContent = data.total_lentes;
+                document.getElementById("dashDiscapacidad").textContent = data.total_discapacidad;
+                document.getElementById("dashCronicas").textContent = data.total_cronicas;
+
+                renderChartsDashboard(data);
+                renderTablaGerencias(data.gerencias_stats);
+            } catch (err) {
+                console.error("Error al cargar estadísticas:", err);
+            }
+        }
+
+        function renderChartsDashboard(data) {
+            const ctxGenero = document.getElementById("chartGenero").getContext("2d");
+            if (chartGeneroInstance) chartGeneroInstance.destroy();
+            chartGeneroInstance = new Chart(ctxGenero, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Masculino', 'Femenino'],
+                    datasets: [{
+                        data: [data.total_masculino, data.total_femenino],
+                        backgroundColor: ['#0d6efd', '#d63384']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const ctxAreas = document.getElementById("chartAreas").getContext("2d");
+            if (chartAreasInstance) chartAreasInstance.destroy();
+            chartAreasInstance = new Chart(ctxAreas, {
+                type: 'bar',
+                data: {
+                    labels: ['Administrativo', 'Operativo', 'Ventas'],
+                    datasets: [{
+                        label: 'Trabajadores',
+                        data: [data.area_administrativos, data.area_operativos, data.area_ventas],
+                        backgroundColor: ['#6c757d', '#dc3545', '#ffc107']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            const ctxTop = document.getElementById("topCronicasChart").getContext("2d");
+            if (chartTopCronicasInstance) chartTopCronicasInstance.destroy();
+            
+            const labelsTop = data.top_cronicas.map(x => x.nombre);
+            const valuesTop = data.top_cronicas.map(x => x.cantidad);
+
+            chartTopCronicasInstance = new Chart(ctxTop, {
+                type: 'bar',
+                data: {
+                    labels: labelsTop.length ? labelsTop : ['Sin registros'],
+                    datasets: [{
+                        label: 'Casos',
+                        data: valuesTop.length ? valuesTop : [0],
+                        backgroundColor: '#0dcaf0'
+                    }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
-        async function guardarExamenMedico() {
-            const cedula = document.getElementById('workerCedula').textContent.replace('C.I.:', '').trim();
-            const data = {
-                fecha: document.getElementById('exam_date').value,
-                tipo_examen: document.getElementById('exam_type').value,
-                resultado: document.getElementById('exam_result').value,
-                observaciones: document.getElementById('exam_obs').value.trim()
+        function renderTablaGerencias(gerencias) {
+            const tbody = document.getElementById("tableGerenciasBody");
+            tbody.innerHTML = "";
+            if (!gerencias || gerencias.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="2" class="text-center text-muted">Sin datos registradas.</td></tr>`;
+                return;
+            }
+            gerencias.forEach(g => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-semibold">${g.gerencia}</td>
+                        <td class="text-end fw-bold text-success">${g.dias_sin_accidentes} Días</td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function buscarTrabajador() {
+            const cedula = document.getElementById("cedulaInput").value.trim();
+            if (!cedula) return;
+
+            try {
+                const res = await fetch(`/api/workers/search/${encodeURIComponent(cedula)}`);
+                if (!res.ok) {
+                    Swal.fire("No encontrado", "No se encontró ningún trabajador registrado con esa cédula.", "warning");
+                    document.getElementById("workerProfileContainer").style.display = "none";
+                    return;
+                }
+                currentWorkerData = await res.json();
+                renderizarPerfilTrabajador(currentWorkerData);
+            } catch (err) {
+                Swal.fire("Error", "Error consultando el expediente.", "error");
+            }
+        }
+
+        function renderizarPerfilTrabajador(w) {
+            document.getElementById("workerProfileContainer").style.display = "block";
+
+            document.getElementById("workerPhoto").src = w.photo_url || "/static/uploads/default_avatar.png";
+            document.getElementById("workerFullName").textContent = `${w.first_name} ${w.last_name}`;
+            document.getElementById("workerCodeBadge").textContent = `Código: ${w.worker_code || 'S/C'}`;
+            document.getElementById("workerCedula").textContent = `C.I.: ${w.cedula}`;
+            document.getElementById("workerGender").textContent = w.gender || 'Masculino';
+            document.getElementById("workerCargo").textContent = w.position || '---';
+            document.getElementById("workerDept").textContent = w.department || '---';
+            document.getElementById("workerArea").textContent = w.area || 'Operativo';
+            document.getElementById("workerJefe").textContent = w.supervisor || '---';
+
+            document.getElementById("workerDaysWithoutRest").textContent = `${w.days_without_rest || 0} Días`;
+
+            const statusBadge = document.getElementById("workerStatusBadge");
+            const reposoContainer = document.getElementById("reposoDetailsContainer");
+            const vacContainer = document.getElementById("vacacionesDetailsContainer");
+
+            reposoContainer.style.display = "none";
+            vacContainer.style.display = "none";
+
+            if (w.calculated_status === "EN REPOSO") {
+                statusBadge.className = "badge bg-danger badge-status";
+                statusBadge.innerHTML = `<i class="fa-solid fa-bed-pulse me-1"></i>EN REPOSO`;
+                reposoContainer.style.display = "block";
+                document.getElementById("reposoDaysText").textContent = `EN REPOSO MÉDICO (${w.leave_days || 0} Días Otorgados)`;
+                document.getElementById("reposoCausaText").textContent = `Diagnóstico: ${w.leave_reason || 'Sin detalles'}`;
+            } else if (w.calculated_status === "DE VACACIONES") {
+                statusBadge.className = "badge bg-warning text-dark badge-status";
+                statusBadge.innerHTML = `<i class="fa-solid fa-umbrella-beach me-1"></i>DE VACACIONES`;
+                vacContainer.style.display = "block";
+                
+                let ultimaVac = w.vacations && w.vacations.length ? w.vacations[w.vacations.length - 1] : null;
+                document.getElementById("vacacionesText").textContent = `DE VACACIONES (${ultimaVac ? ultimaVac.dias_vacaciones : 0} Días de Disfrute)`;
+                document.getElementById("vacacionesReintegroText").textContent = `Fecha de Reintegro: ${ultimaVac ? ultimaVac.fecha_reintegro : '--/--/----'}`;
+            } else if (w.calculated_status === "INACTIVO") {
+                statusBadge.className = "badge bg-secondary badge-status";
+                statusBadge.innerHTML = `<i class="fa-solid fa-user-slash me-1"></i>INACTIVO`;
+            } else {
+                statusBadge.className = "badge bg-success badge-status";
+                statusBadge.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i>ACTIVO`;
+            }
+
+            document.getElementById("workerConditionBadge").textContent = `PERSONAL ${w.employment_type ? w.employment_type.toUpperCase() : 'FIJO'}`;
+
+            // Pestaña 1
+            document.getElementById("workerBirthdate").textContent = w.birthdate || '---';
+            document.getElementById("workerPhone").textContent = w.phone || '---';
+            document.getElementById("workerEmail").textContent = w.email || '---';
+            document.getElementById("workerAddress").textContent = w.address || '---';
+            document.getElementById("workerReference").textContent = w.address_reference || '---';
+
+            document.getElementById("workerShirtSize").textContent = w.shirt_size || '---';
+            document.getElementById("workerPantsSize").textContent = w.pants_size || '---';
+            document.getElementById("workerShoeSize").textContent = w.shoe_size || '---';
+            document.getElementById("workerOverallSize").textContent = w.overall_size || '---';
+
+            const em = w.emergency_contact || {};
+            document.getElementById("emergencyName").textContent = em.name || '---';
+            document.getElementById("emergencyKinship").textContent = em.kinship || '---';
+            document.getElementById("emergencyPhone").textContent = em.phone || '---';
+
+            // Pestaña 2
+            document.getElementById("workerCode").textContent = w.worker_code || '---';
+            document.getElementById("workerHireDate").textContent = w.hire_date || '---';
+            document.getElementById("workerExitDate").textContent = w.exit_date || 'N/A';
+            document.getElementById("workerServiceTime").textContent = w.service_time || '---';
+            document.getElementById("workerCondition").textContent = w.employment_type || 'Fijo';
+
+            document.getElementById("workerLastDotationDate").textContent = w.last_dotation_date || 'Sin Registro';
+            document.getElementById("workerDotationStatus").textContent = w.dotation_status || 'Completa';
+            document.getElementById("workerDotationComments").textContent = w.dotation_comments || 'Ninguno';
+
+            // Tabla Vacaciones
+            const vacTbody = document.getElementById("vacationsTableBody");
+            vacTbody.innerHTML = "";
+            if (w.vacations && w.vacations.length > 0) {
+                w.vacations.forEach(v => {
+                    vacTbody.innerHTML += `
+                        <tr>
+                            <td>${v.fecha_inicio}</td>
+                            <td>${v.fecha_reintegro}</td>
+                            <td class="fw-bold text-primary">${v.dias_vacaciones || 0} Días</td>
+                            <td>${v.observacion || '-'}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                vacTbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">Sin períodos vacacionales registrados.</td></tr>`;
+            }
+
+            // Tabla Riesgos
+            const riskTbody = document.getElementById("risksTableBody");
+            riskTbody.innerHTML = "";
+            if (w.risk_notifications && w.risk_notifications.length > 0) {
+                w.risk_notifications.forEach(r => {
+                    riskTbody.innerHTML += `
+                        <tr>
+                            <td>${r.fecha}</td>
+                            <td class="fw-semibold">${r.puesto}</td>
+                            <td>${r.descripcion_riesgo}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                riskTbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">Sin notificaciones de riesgo registradas.</td></tr>`;
+            }
+
+            // Pestaña 3
+            document.getElementById("workerEducation").textContent = w.education_level || '---';
+            document.getElementById("workerDegree").textContent = w.profession || '---';
+
+            const fillList = (id, items) => {
+                const el = document.getElementById(id);
+                el.innerHTML = "";
+                if (items && items.length) {
+                    items.forEach(it => {
+                        el.innerHTML += `<li class="list-group-item py-1">${typeof it === 'object' ? JSON.stringify(it) : it}</li>`;
+                    });
+                } else {
+                    el.innerHTML = `<li class="list-group-item py-1 text-muted">Sin registros</li>`;
+                }
+            };
+
+            fillList("workerAdditionalDegrees", w.additional_degrees);
+            fillList("workerCourses", w.courses);
+            fillList("workerCertifications", w.certifications);
+            fillList("workerAwards", w.awards);
+
+            // Pestaña 4
+            document.getElementById("workerBloodType").textContent = w.blood_type || '---';
+            document.getElementById("workerUsesGlasses").textContent = w.uses_glasses || 'No';
+            document.getElementById("workerAllergiesMeds").textContent = w.allergies_meds || 'Ninguna';
+            document.getElementById("workerAllergiesFood").textContent = w.allergies_food || 'Ninguna';
+            document.getElementById("workerChronicTreatment").textContent = w.chronic_treatment || 'Ninguno';
+            document.getElementById("workerDisability").textContent = w.disability_condition || 'Ninguna';
+
+            // Alertas Exámenes
+            const examAlertsContainer = document.getElementById("examAlertsContainer");
+            examAlertsContainer.innerHTML = "";
+            if (w.pending_exams && w.pending_exams.length > 0) {
+                examAlertsContainer.style.display = "block";
+                w.pending_exams.forEach(ex => {
+                    examAlertsContainer.innerHTML += `
+                        <div class="alert alert-warning p-2 mb-2 d-flex align-items-center">
+                            <i class="fa-solid fa-triangle-exclamation me-2 fs-5"></i>
+                            <span class="fw-semibold" style="font-size: 0.9rem;">${ex.mensaje}</span>
+                        </div>
+                    `;
+                });
+            } else {
+                examAlertsContainer.style.display = "none";
+            }
+
+            // Tabla Exámenes
+            const examTbody = document.getElementById("examsTableBody");
+            examTbody.innerHTML = "";
+            if (w.medical_exams && w.medical_exams.length > 0) {
+                w.medical_exams.forEach(ex => {
+                    examTbody.innerHTML += `
+                        <tr>
+                            <td>${ex.fecha}</td>
+                            <td class="fw-semibold">${ex.tipo_examen}</td>
+                            <td><span class="badge ${ex.resultado === 'Apto' ? 'bg-success' : 'bg-warning'}">${ex.resultado}</span></td>
+                            <td>${ex.observaciones || '-'}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                examTbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">Sin exámenes médicos preventivos registrados.</td></tr>`;
+            }
+
+            // Pestaña 5: Eventos
+            const evTbody = document.getElementById("eventsTableBody");
+            evTbody.innerHTML = "";
+            if (w.medical_events && w.medical_events.length > 0) {
+                w.medical_events.forEach(ev => {
+                    evTbody.innerHTML += `
+                        <tr>
+                            <td>${ev.fecha}</td>
+                            <td class="fw-semibold text-danger">${ev.tipo}</td>
+                            <td>${ev.rest_days || 0} Días</td>
+                            <td>${ev.descripcion}</td>
+                            <td><span class="badge ${ev.is_reposo ? 'bg-danger' : 'bg-info'}">${ev.is_reposo ? 'Generó Reposo' : 'Informativo'}</span></td>
+                        </tr>
+                    `;
+                });
+            } else {
+                evTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Sin eventos registrados.</td></tr>`;
+            }
+        }
+
+        function irARegistroTrabajador() {
+            window.location.href = "/register";
+        }
+
+        async function exportarPDF() {
+            if (!currentWorkerData) return;
+            window.open(`/api/workers/export/pdf/${currentWorkerData.cedula}`, '_blank');
+        }
+
+        async function eliminarTrabajador() {
+            if (!currentWorkerData) return;
+            
+            const confirm = await Swal.fire({
+                title: '¿Confirmar eliminación?',
+                text: `Se eliminará el expediente completo del trabajador ${currentWorkerData.first_name} ${currentWorkerData.last_name}.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (confirm.isConfirmed) {
+                try {
+                    const res = await fetch(`/api/workers/delete/${currentWorkerData.cedula}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        Swal.fire("Eliminado", "El expediente ha sido removido exitosamente.", "success");
+                        document.getElementById("workerProfileContainer").style.display = "none";
+                        cargarEstadisticasDashboard();
+                    } else {
+                        Swal.fire("Error", "No se pudo eliminar el trabajador.", "error");
+                    }
+                } catch (e) {
+                    Swal.fire("Error", "Error procesando la solicitud.", "error");
+                }
+            }
+        }
+
+        async function darDeAltaTrabajador() {
+            if (!currentWorkerData) return;
+            try {
+                const res = await fetch(`/api/workers/discharge/${currentWorkerData.cedula}`, { method: 'POST' });
+                if (res.ok) {
+                    Swal.fire("Alta Procesada", "El trabajador ha retornado a estatus ACTIVO.", "success");
+                    buscarTrabajador();
+                    cargarEstadisticasDashboard();
+                }
+            } catch (e) {
+                Swal.fire("Error", "Error al procesar el alta.", "error");
+            }
+        }
+
+        function toggleReposoFields() {
+            const val = document.getElementById("ev_type").value;
+            const restDaysGroup = document.getElementById("group_rest_days");
+            const isReposoGroup = document.getElementById("group_is_reposo");
+            if (val === "Reposo Médico") {
+                restDaysGroup.style.display = "block";
+                isReposoGroup.style.display = "block";
+            } else {
+                restDaysGroup.style.display = "block";
+                isReposoGroup.style.display = "none";
+            }
+        }
+
+        async function guardarNuevoEvento() {
+            if (!currentWorkerData) return;
+            const fechaVal = document.getElementById("ev_date").value;
+            const dt = parseFechaLocal(fechaVal);
+            if (!dt) {
+                Swal.fire("Fecha requerida", "Seleccione una fecha válida.", "warning");
+                return;
+            }
+            const fechaFmt = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+
+            const payload = {
+                fecha: fechaFmt,
+                tipo: document.getElementById("ev_type").value,
+                rest_days: parseInt(document.getElementById("ev_rest_days").value) || 0,
+                is_reposo: document.getElementById("ev_is_reposo").checked,
+                descripcion: document.getElementById("ev_description").value.trim()
             };
 
             try {
-                const response = await fetch(`/api/workers/add-medical-exam/${cedula}`, {
+                const res = await fetch(`/api/workers/add-event/${currentWorkerData.cedula}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(payload)
                 });
-
-                const result = await response.json();
-                if (response.ok) {
-                    const modalEl = document.getElementById('modalNuevoExamenMedico');
-                    const modal = bootstrap.Modal.getInstance(modalEl);
-                    if (modal) modal.hide();
-
-                    Swal.fire({
-                        title: 'Examen Registrado',
-                        text: result.message,
-                        icon: 'success',
-                        confirmButtonColor: '#d9251d'
-                    }).then(() => {
-                        buscarTrabajador();
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'Error',
-                        text: result.detail || 'Ocurrió un inconveniente al guardar el examen.',
-                        icon: 'error',
-                        confirmButtonColor: '#d9251d'
-                    });
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById("modalNuevoEvento")).hide();
+                    Swal.fire("Éxito", "Evento registrado correctamente.", "success");
+                    buscarTrabajador();
+                    cargarEstadisticasDashboard();
                 }
-            } catch (err) {
-                Swal.fire({
-                    title: 'Error de Red',
-                    text: 'Inconveniente al conectar con el servidor.',
-                    icon: 'error',
-                    confirmButtonColor: '#d9251d'
+            } catch (e) {
+                Swal.fire("Error", "Error guardando evento.", "error");
+            }
+        }
+
+        function calcularDiasYReintegroVacaciones() {
+            const startStr = document.getElementById("vac_start_date").value;
+            const returnStr = document.getElementById("vac_return_date").value;
+            if (startStr && returnStr) {
+                const dtStart = new Date(startStr);
+                const dtReturn = new Date(returnStr);
+                const diffTime = dtReturn - dtStart;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays > 0) {
+                    document.getElementById("vac_days_count").value = `${diffDays} Días`;
+                } else {
+                    document.getElementById("vac_days_count").value = "La fecha de reintegro debe ser posterior.";
+                }
+            }
+        }
+
+        async function guardarNuevaVacacion() {
+            if (!currentWorkerData) return;
+            const startStr = document.getElementById("vac_start_date").value;
+            const returnStr = document.getElementById("vac_return_date").value;
+
+            const dtS = parseFechaLocal(startStr);
+            const dtR = parseFechaLocal(returnStr);
+
+            if (!dtS || !dtR) {
+                Swal.fire("Campos requeridos", "Seleccione las fechas de vacaciones.", "warning");
+                return;
+            }
+
+            const fmtS = `${String(dtS.getDate()).padStart(2, '0')}/${String(dtS.getMonth() + 1).padStart(2, '0')}/${dtS.getFullYear()}`;
+            const fmtR = `${String(dtR.getDate()).padStart(2, '0')}/${String(dtR.getMonth() + 1).padStart(2, '0')}/${dtR.getFullYear()}`;
+
+            const diffTime = dtR - dtS;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            const payload = {
+                fecha_inicio: fmtS,
+                fecha_reintegro: fmtR,
+                dias_vacaciones: diffDays > 0 ? diffDays : 0,
+                observacion: document.getElementById("vac_obs").value.trim()
+            };
+
+            try {
+                const res = await fetch(`/api/workers/add-vacation/${currentWorkerData.cedula}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById("modalNuevaVacacion")).hide();
+                    Swal.fire("Éxito", "Vacaciones asignadas exitosamente.", "success");
+                    buscarTrabajador();
+                    cargarEstadisticasDashboard();
+                }
+            } catch (e) {
+                Swal.fire("Error", "Error al guardar vacaciones.", "error");
+            }
+        }
+
+        async function guardarExamenMedico() {
+            if (!currentWorkerData) return;
+            const dt = parseFechaLocal(document.getElementById("exam_date").value);
+            if (!dt) {
+                Swal.fire("Fecha requerida", "Ingrese la fecha del examen.", "warning");
+                return;
+            }
+            const fechaFmt = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+
+            const payload = {
+                fecha: fechaFmt,
+                tipo_examen: document.getElementById("exam_type").value,
+                resultado: document.getElementById("exam_result").value,
+                observaciones: document.getElementById("exam_obs").value.trim()
+            };
+
+            try {
+                const res = await fetch(`/api/workers/add-medical-exam/${currentWorkerData.cedula}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById("modalNuevoExamenMedico")).hide();
+                    Swal.fire("Éxito", "Examen médico registrado.", "success");
+                    buscarTrabajador();
+                }
+            } catch (e) {
+                Swal.fire("Error", "Error guardando el examen médico.", "error");
+            }
+        }
+
+        async function guardarNotificacionRiesgo() {
+            if (!currentWorkerData) return;
+            const dt = parseFechaLocal(document.getElementById("risk_date").value);
+            if (!dt) {
+                Swal.fire("Fecha requerida", "Ingrese la fecha de notificación.", "warning");
+                return;
+            }
+            const fechaFmt = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+
+            const payload = {
+                fecha: fechaFmt,
+                puesto: document.getElementById("risk_position").value.trim(),
+                descripcion_riesgo: document.getElementById("risk_description").value.trim()
+            };
+
+            try {
+                const res = await fetch(`/api/workers/add-risk/${currentWorkerData.cedula}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById("modalNotificacionRiesgo")).hide();
+                    Swal.fire("Éxito", "Notificación de riesgo registrada.", "success");
+                    buscarTrabajador();
+                }
+            } catch (e) {
+                Swal.fire("Error", "Error guardando la notificación de riesgo.", "error");
+            }
+        }
+
+        // LÓGICA DE EDICIÓN COMPLETA
+        function abrirModalEditar() {
+            if (!currentWorkerData) return;
+            const w = currentWorkerData;
+
+            document.getElementById("edit_cedula").value = w.cedula;
+            document.getElementById("edit_first_name").value = w.first_name || "";
+            document.getElementById("edit_last_name").value = w.last_name || "";
+            document.getElementById("edit_gender").value = w.gender || "Masculino";
+            document.getElementById("edit_birthdate").value = formatFechaIso(w.birthdate);
+            document.getElementById("edit_phone").value = w.phone || "";
+            document.getElementById("edit_email").value = w.email || "";
+            document.getElementById("edit_address").value = w.address || "";
+            document.getElementById("edit_address_reference").value = w.address_reference || "";
+
+            document.getElementById("edit_shirt_size").value = w.shirt_size || "";
+            document.getElementById("edit_pants_size").value = w.pants_size || "";
+            document.getElementById("edit_shoe_size").value = w.shoe_size || "";
+            document.getElementById("edit_overall_size").value = w.overall_size || "";
+
+            const em = w.emergency_contact || {};
+            document.getElementById("edit_emergency_name").value = em.name || "";
+            document.getElementById("edit_emergency_kinship").value = em.kinship || "";
+            document.getElementById("edit_emergency_phone").value = em.phone || "";
+
+            document.getElementById("edit_worker_code").value = w.worker_code || "";
+            document.getElementById("edit_position").value = w.position || "";
+            document.getElementById("edit_department").value = w.department || "";
+            document.getElementById("edit_area").value = w.area || "Operativo";
+            document.getElementById("edit_supervisor").value = w.supervisor || "";
+            document.getElementById("edit_employment_type").value = w.employment_type || "Fijo";
+            document.getElementById("edit_hire_date").value = formatFechaIso(w.hire_date);
+            document.getElementById("edit_exit_date").value = formatFechaIso(w.exit_date);
+            document.getElementById("edit_service_time").value = w.service_time || "";
+
+            document.getElementById("edit_last_dotation_date").value = formatFechaIso(w.last_dotation_date);
+            document.getElementById("edit_dotation_status").value = w.dotation_status || "Completa";
+            document.getElementById("edit_dotation_comments").value = w.dotation_comments || "";
+
+            document.getElementById("edit_education_level").value = w.education_level || "Bachiller";
+            document.getElementById("edit_profession").value = w.profession || "";
+
+            document.getElementById("edit_blood_type").value = w.blood_type || "O+";
+            document.getElementById("edit_uses_glasses").value = w.uses_glasses || "No";
+            document.getElementById("edit_allergies_meds").value = w.allergies_meds || "";
+            document.getElementById("edit_allergies_food").value = w.allergies_food || "";
+            document.getElementById("edit_chronic_treatment").value = w.chronic_treatment || "";
+            document.getElementById("edit_disability_condition").value = w.disability_condition || "";
+
+            // Cargar listas editables
+            cargarCamposDinamicosEdit("editEstudiosContainer", w.additional_degrees);
+            cargarCamposDinamicosEdit("editCursosContainer", w.courses);
+            cargarCamposDinamicosEdit("editCertificacionesContainer", w.certifications);
+            cargarCamposDinamicosEdit("editReconocimientosContainer", w.awards);
+            cargarCamposDinamicosEdit("editPatologiasContainer", w.pathologies);
+
+            const modal = new bootstrap.Modal(document.getElementById("modalEditarTrabajador"));
+            modal.show();
+        }
+
+        function cargarCamposDinamicosEdit(containerId, items) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = "";
+            if (items && items.length) {
+                items.forEach(item => {
+                    const val = typeof item === 'object' ? (item.nombre || JSON.stringify(item)) : item;
+                    container.innerHTML += `
+                        <div class="input-group mb-2 dynamic-item-edit">
+                            <input type="text" class="form-control form-control-sm dynamic-val" value="${val}">
+                            <button class="btn btn-outline-danger btn-sm" type="button" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
                 });
             }
         }
-    </script>
 
-    <!-- SCRIPT DE ALERTAS AUTOMÁTICAS AL INICIAR SESIÓN (CONTRATOS Y EXÁMENES MÉDICOS PREVENTIVOS) -->
-    {% if contract_alerts or exam_alerts %}
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const alertasContratos = {{ contract_alerts | tojson if contract_alerts else [] }};
-            const alertasExamenes = {{ exam_alerts | tojson if exam_alerts else [] }};
+        function agregarCampoEditEstudio() {
+            document.getElementById("editEstudiosContainer").innerHTML += `
+                <div class="input-group mb-2 dynamic-item-edit">
+                    <input type="text" class="form-control form-control-sm dynamic-val" placeholder="Nueva carrera o especialización">
+                    <button class="btn btn-outline-danger btn-sm" type="button" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `;
+        }
 
-            let htmlContent = '';
+        function agregarCampoEditCurso() {
+            document.getElementById("editCursosContainer").innerHTML += `
+                <div class="input-group mb-2 dynamic-item-edit">
+                    <input type="text" class="form-control form-control-sm dynamic-val" placeholder="Nombre del curso realizado">
+                    <button class="btn btn-outline-danger btn-sm" type="button" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `;
+        }
 
-            if (alertasContratos.length > 0) {
-                htmlContent += `<h6 class="fw-bold text-danger text-start border-bottom pb-1"><i class="fa-solid fa-file-contract me-2"></i>Contratos Próximos a Vencer:</h6>`;
-                htmlContent += alertasContratos.map(a => `<p class="mb-2 text-start small"><i class="fa-solid fa-triangle-exclamation text-warning me-2"></i>${a}</p>`).join('');
+        function agregarCampoEditCertificacion() {
+            document.getElementById("editCertificacionesContainer").innerHTML += `
+                <div class="input-group mb-2 dynamic-item-edit">
+                    <input type="text" class="form-control form-control-sm dynamic-val" placeholder="Certificación técnica u ocupacional">
+                    <button class="btn btn-outline-danger btn-sm" type="button" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `;
+        }
+
+        function agregarCampoEditReconocimiento() {
+            document.getElementById("editReconocimientosContainer").innerHTML += `
+                <div class="input-group mb-2 dynamic-item-edit">
+                    <input type="text" class="form-control form-control-sm dynamic-val" placeholder="Reconocimiento o premio otorgado">
+                    <button class="btn btn-outline-danger btn-sm" type="button" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `;
+        }
+
+        function agregarCampoEditPatologia() {
+            document.getElementById("editPatologiasContainer").innerHTML += `
+                <div class="input-group mb-2 dynamic-item-edit">
+                    <input type="text" class="form-control form-control-sm dynamic-val" placeholder="Nombre de la patología o enfermedad crónica">
+                    <button class="btn btn-outline-danger btn-sm" type="button" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `;
+        }
+
+        function agregarCampoEditRiesgo() {
+            document.getElementById("editRiesgosContainer").innerHTML += `
+                <div class="card p-2 mb-2 dynamic-item-edit">
+                    <div class="row g-2">
+                        <div class="col-md-4"><input type="date" class="form-control form-control-sm edit-risk-date"></div>
+                        <div class="col-md-7"><input type="text" class="form-control form-control-sm edit-risk-pos" placeholder="Puesto evaluado"></div>
+                        <div class="col-md-1"><button class="btn btn-outline-danger btn-sm w-100" type="button" onclick="this.closest('.card').remove()"><i class="fa-solid fa-trash"></i></button></div>
+                        <div class="col-12"><textarea class="form-control form-control-sm edit-risk-desc" rows="2" placeholder="Descripción de riesgos"></textarea></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function obtenerValoresDinamicos(containerId) {
+            const inputs = document.querySelectorAll(`#${containerId} .dynamic-val`);
+            const res = [];
+            inputs.forEach(inp => {
+                if (inp.value.trim()) res.push(inp.value.trim());
+            });
+            return res;
+        }
+
+        function calcularTiempoServicioEdicion() {
+            const ing = parseFechaLocal(document.getElementById("edit_hire_date").value);
+            if (!ing) return;
+            const fin = parseFechaLocal(document.getElementById("edit_exit_date").value) || new Date();
+            
+            let years = fin.getFullYear() - ing.getFullYear();
+            let months = fin.getMonth() - ing.getMonth();
+            if (months < 0) {
+                years--;
+                months += 12;
+            }
+            document.getElementById("edit_service_time").value = `${years} Años y ${months} Meses`;
+        }
+
+        async function guardarEdicionTrabajador() {
+            const cedula = document.getElementById("edit_cedula").value;
+            const formData = new FormData();
+
+            formData.append("first_name", document.getElementById("edit_first_name").value.trim());
+            formData.append("last_name", document.getElementById("edit_last_name").value.trim());
+            formData.append("gender", document.getElementById("edit_gender").value);
+            formData.append("birthdate", document.getElementById("edit_birthdate").value);
+            formData.append("phone", document.getElementById("edit_phone").value.trim());
+            formData.append("email", document.getElementById("edit_email").value.trim());
+            formData.append("address", document.getElementById("edit_address").value.trim());
+            formData.append("address_reference", document.getElementById("edit_address_reference").value.trim());
+
+            formData.append("shirt_size", document.getElementById("edit_shirt_size").value.trim());
+            formData.append("pants_size", document.getElementById("edit_pants_size").value.trim());
+            formData.append("shoe_size", document.getElementById("edit_shoe_size").value.trim());
+            formData.append("overall_size", document.getElementById("edit_overall_size").value.trim());
+
+            formData.append("emergency_name", document.getElementById("edit_emergency_name").value.trim());
+            formData.append("emergency_kinship", document.getElementById("edit_emergency_kinship").value.trim());
+            formData.append("emergency_phone", document.getElementById("edit_emergency_phone").value.trim());
+
+            formData.append("worker_code", document.getElementById("edit_worker_code").value.trim());
+            formData.append("position", document.getElementById("edit_position").value.trim());
+            formData.append("department", document.getElementById("edit_department").value.trim());
+            formData.append("area", document.getElementById("edit_area").value);
+            formData.append("supervisor", document.getElementById("edit_supervisor").value.trim());
+            formData.append("employment_type", document.getElementById("edit_employment_type").value);
+            formData.append("hire_date", document.getElementById("edit_hire_date").value);
+            formData.append("exit_date", document.getElementById("edit_exit_date").value);
+            formData.append("service_time", document.getElementById("edit_service_time").value);
+
+            formData.append("last_dotation_date", document.getElementById("edit_last_dotation_date").value);
+            formData.append("dotation_status", document.getElementById("edit_dotation_status").value);
+            formData.append("dotation_comments", document.getElementById("edit_dotation_comments").value.trim());
+
+            formData.append("education_level", document.getElementById("edit_education_level").value);
+            formData.append("profession", document.getElementById("edit_profession").value.trim());
+
+            formData.append("additional_degrees_json", JSON.stringify(obtenerValoresDinamicos("editEstudiosContainer")));
+            formData.append("courses_json", JSON.stringify(obtenerValoresDinamicos("editCursosContainer")));
+            formData.append("certifications_json", JSON.stringify(obtenerValoresDinamicos("editCertificacionesContainer")));
+            formData.append("awards_json", JSON.stringify(obtenerValoresDinamicos("editReconocimientosContainer")));
+
+            formData.append("blood_type", document.getElementById("edit_blood_type").value);
+            formData.append("uses_glasses", document.getElementById("edit_uses_glasses").value);
+            formData.append("allergies_meds", document.getElementById("edit_allergies_meds").value.trim());
+            formData.append("allergies_food", document.getElementById("edit_allergies_food").value.trim());
+            formData.append("chronic_treatment", document.getElementById("edit_chronic_treatment").value.trim());
+            formData.append("disability_condition", document.getElementById("edit_disability_condition").value.trim());
+
+            const patologiasRaw = obtenerValoresDinamicos("editPatologiasContainer");
+            const patologiasObj = patologiasRaw.map(p => ({ nombre: p }));
+            formData.append("pathologies_json", JSON.stringify(patologiasObj));
+
+            // Riesgos
+            const riesgosCards = document.querySelectorAll("#editRiesgosContainer .card");
+            const listaRiesgos = [];
+            riesgosCards.forEach(card => {
+                const f = card.querySelector(".edit-risk-date").value;
+                const p = card.querySelector(".edit-risk-pos").value;
+                const d = card.querySelector(".edit-risk-desc").value;
+                if (f && p && d) {
+                    listaRiesgos.push({ fecha: f, puesto: p, descripcion_riesgo: d });
+                }
+            });
+            formData.append("risk_notifications_json", JSON.stringify(listaRiesgos));
+
+            const fileInput = document.getElementById("edit_photo_file");
+            if (fileInput.files.length > 0) {
+                formData.append("photo_file", fileInput.files[0]);
             }
 
-            if (alertasExamenes.length > 0) {
-                htmlContent += `<h6 class="fw-bold text-danger text-start border-bottom pb-1 mt-3"><i class="fa-solid fa-stethoscope me-2"></i>Exámenes Médicos Preventivos Pendientes:</h6>`;
-                htmlContent += alertasExamenes.map(a => `<p class="mb-2 text-start small"><i class="fa-solid fa-calendar-day text-danger me-2"></i>${a}</p>`).join('');
-            }
-
-            if (htmlContent) {
-                Swal.fire({
-                    title: 'Alertas de Gestión SSST',
-                    html: `<div class="p-2" style="max-height: 350px; overflow-y: auto;">${htmlContent}</div>`,
-                    icon: 'warning',
-                    confirmButtonColor: '#d9251d',
-                    confirmButtonText: 'Entendido'
+            try {
+                const res = await fetch(`/api/workers/update/${cedula}`, {
+                    method: 'PUT',
+                    body: formData
                 });
+
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById("modalEditarTrabajador")).hide();
+                    Swal.fire("Actualizado", "Expediente del trabajador actualizado correctamente.", "success");
+                    buscarTrabajador();
+                    cargarEstadisticasDashboard();
+                } else {
+                    Swal.fire("Error", "No se pudo actualizar el registro.", "error");
+                }
+            } catch (e) {
+                Swal.fire("Error", "Error al procesar la actualización.", "error");
             }
-        });
+        }
+
+        // INFORME INTELIGENTE
+        async function generarInformeInteligente() {
+            try {
+                const res = await fetch("/api/dashboard/stats");
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const hoy = new Date();
+                document.getElementById("reportFechaGeneracion").textContent = `Fecha: ${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+
+                let texto = `Actualmente la organización cuenta con una plantilla activa de <strong>${data.total_trabajadores} trabajadores</strong> (${data.total_masculino} hombres y ${data.total_femenino} mujeres). `;
+                texto += `Del total evaluado, se registran <strong>${data.total_reposo} casos de ausentismo médico activo</strong>. `;
+                texto += `En cuanto a condiciones visuales y de salud, <strong>${data.total_lentes} colaboradores requieren uso de lentes correctivos</strong>, y existen <strong>${data.total_cronicas} trabajadores diagnosticados con condiciones crónicas</strong>. `;
+                texto += `El indicador global de seguridad refleja <strong>${data.dias_sin_accidentes_empresa} días continuos sin accidentes laborales</strong> a nivel operacional.`;
+
+                document.getElementById("resumenTextoInteligente").innerHTML = texto;
+
+                // Sugerencias
+                const sugList = document.getElementById("listaSugerenciasInteligentes");
+                sugList.innerHTML = "";
+
+                if (data.total_reposo > 0) {
+                    sugList.innerHTML += `<li class="list-group-item text-danger fw-semibold"><i class="fa-solid fa-circle-exclamation me-2"></i>Realizar seguimiento médico continuo a los ${data.total_reposo} trabajadores en reposo activo para planificar su reintegro laboral adecuado.</li>`;
+                }
+                if (data.total_lentes > 0) {
+                    sugList.innerHTML += `<li class="list-group-item text-primary fw-semibold"><i class="fa-solid fa-glasses me-2"></i>Programar jornadas de salud visual periódicas para el personal que opera equipos y montacargas.</li>`;
+                }
+                if (data.top_cronicas && data.top_cronicas.length > 0) {
+                    sugList.innerHTML += `<li class="list-group-item text-warning text-dark fw-semibold"><i class="fa-solid fa-heart-pulse me-2"></i>Desarrollar programas preventivos específicos enfocados en las patologías más frecuentes: ${data.top_cronicas.map(x=>x.nombre).join(', ')}.</li>`;
+                }
+                sugList.innerHTML += `<li class="list-group-item text-success fw-semibold"><i class="fa-solid fa-shield-check me-2"></i>Mantener las inspecciones dinámicas de seguridad en puestos de trabajo para preservar la racha sin accidentes.</li>`;
+
+                renderChartsReporte(data);
+
+                const modal = new bootstrap.Modal(document.getElementById("modalInformeInteligente"));
+                modal.show();
+            } catch (e) {
+                console.error("Error al generar informe inteligente:", e);
+            }
+        }
+
+        function renderChartsReporte(data) {
+            const createOrUpdate = (instance, canvasId, config) => {
+                if (instance) instance.destroy();
+                const ctx = document.getElementById(canvasId).getContext("2d");
+                return new Chart(ctx, config);
+            };
+
+            reportChartGenero = createOrUpdate(reportChartGenero, "chartReporteGenero", {
+                type: 'doughnut',
+                data: {
+                    labels: ['Masculino', 'Femenino'],
+                    datasets: [{ data: [data.total_masculino, data.total_femenino], backgroundColor: ['#0d6efd', '#d63384'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            reportChartAreas = createOrUpdate(reportChartAreas, "chartReporteAreas", {
+                type: 'bar',
+                data: {
+                    labels: ['Administrativo', 'Operativo', 'Ventas'],
+                    datasets: [{ label: 'Personal', data: [data.area_administrativos, data.area_operativos, data.area_ventas], backgroundColor: ['#6c757d', '#dc3545', '#ffc107'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            reportChartSalud = createOrUpdate(reportChartSalud, "chartReporteSalud", {
+                type: 'pie',
+                data: {
+                    labels: ['Activos', 'En Reposo', 'Enf. Crónicas', 'Usa Lentes'],
+                    datasets: [{ data: [data.total_activos, data.total_reposo, data.total_cronicas, data.total_lentes], backgroundColor: ['#198754', '#dc3545', '#0dcaf0', '#0d6efd'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const labelsSeg = data.gerencias_stats.map(x => x.gerencia);
+            const dataSeg = data.gerencias_stats.map(x => x.dias_sin_accidentes);
+
+            reportChartSeguridad = createOrUpdate(reportChartSeguridad, "chartReporteSeguridad", {
+                type: 'bar',
+                data: {
+                    labels: labelsSeg.length ? labelsSeg : ['Sin Datos'],
+                    datasets: [{ label: 'Días Sin Accidentes', data: dataSeg.length ? dataSeg : [0], backgroundColor: '#198754' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            const labelsTop = data.top_cronicas.map(x => x.nombre);
+            const valuesTop = data.top_cronicas.map(x => x.cantidad);
+
+            reportChartTopCronicas = createOrUpdate(reportChartTopCronicas, "chartReporteTopCronicas", {
+                type: 'bar',
+                data: {
+                    labels: labelsTop.length ? labelsTop : ['Sin registros'],
+                    datasets: [{ label: 'Casos Registrados', data: valuesTop.length ? valuesTop : [0], backgroundColor: '#ffc107' }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function exportarInformePDFDirecto() {
+            const element = document.getElementById("informePdfContent");
+            const opt = {
+                margin:       0.3,
+                filename:     `Informe_Gestion_SSST_Munchy_${new Date().toISOString().slice(0,10)}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
     </script>
-    {% endif %}
 </body>
 </html>
