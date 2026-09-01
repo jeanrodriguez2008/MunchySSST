@@ -179,6 +179,27 @@ def calcular_dias_sin_reposo(worker: dict) -> int:
             
     return 0
 
+def calcular_dias_sin_accidentes_trabajador(worker: dict) -> int:
+    """Calcula los días sin accidentes laborales específicos para un trabajador."""
+    fechas_accidentes = []
+    for ev in worker.get("medical_events", []):
+        if ev.get("tipo") == "Accidente Laboral" and ev.get("fecha"):
+            dt = parse_fecha(ev["fecha"])
+            if dt:
+                fechas_accidentes.append(dt)
+    
+    hoy = datetime.now().date()
+    if fechas_accidentes:
+        ultima_fecha = max(fechas_accidentes)
+        return max((hoy - ultima_fecha).days, 0)
+    
+    if worker.get("hire_date"):
+        dt_ingreso = parse_fecha(worker["hire_date"])
+        if dt_ingreso:
+            return max((hoy - dt_ingreso).days, 0)
+            
+    return 0
+
 def evaluar_estatus_trabajador(worker: dict) -> str:
     if worker.get("exit_date"):
         return "INACTIVO"
@@ -586,6 +607,7 @@ def search_worker(cedula: str, db: Session = Depends(get_db)):
         ex["fecha"] = fmt_fecha(ex.get("fecha"))
 
     worker["days_without_rest"] = calcular_dias_sin_reposo(worker)
+    worker["days_without_accidents"] = calcular_dias_sin_accidentes_trabajador(worker)
     worker["calculated_status"] = evaluar_estatus_trabajador(worker)
     worker["pending_exams"] = evaluar_examenes_pendientes(worker)
     return worker
