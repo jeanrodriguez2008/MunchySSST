@@ -464,7 +464,7 @@ def update_user_role(username: str = Form(...), new_role: str = Form(...), reque
     return {"message": f"El rol de {username} ha sido actualizado a {new_role}."}
 
 @app.delete("/api/users/delete/{username}")
-def delete_user(username: str, request: Request, db: Session = Depends(get_db)):
+def delete_user(username: str, request: Request = None, db: Session = Depends(get_db)):
     current = get_current_user(request, db)
     if not current or current["role"] not in ["Webmaster", "Coordinador"]:
         raise HTTPException(status_code=403, detail="Acceso denegado.")
