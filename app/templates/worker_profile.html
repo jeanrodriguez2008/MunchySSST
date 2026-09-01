@@ -1975,53 +1975,68 @@
                 return new Chart(ctx, config);
             };
 
-            reportChartGenero = createOrUpdate(reportChartGenero, "chartReporteGenero", {
-                type: 'doughnut',
+            reportChartGenero = createOrUpdate(reportChartGenero, 'chartReporteGenero', {
+                type: 'pie',
                 data: {
                     labels: ['Masculino', 'Femenino'],
-                    datasets: [{ data: [data.total_masculino, data.total_femenino], backgroundColor: ['#0d6efd', '#d63384'] }]
+                    datasets: [{
+                        data: [data.total_masculino, data.total_femenino],
+                        backgroundColor: ['#0d6efd', '#d63384']
+                    }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            reportChartAreas = createOrUpdate(reportChartAreas, "chartReporteAreas", {
+            reportChartAreas = createOrUpdate(reportChartAreas, 'chartReporteAreas', {
                 type: 'bar',
                 data: {
                     labels: ['Administrativo', 'Operativo', 'Ventas'],
-                    datasets: [{ label: 'Personal', data: [data.area_administrativos, data.area_operativos, data.area_ventas], backgroundColor: ['#6c757d', '#dc3545', '#ffc107'] }]
+                    datasets: [{
+                        data: [data.area_administrativos, data.area_operativos, data.area_ventas],
+                        backgroundColor: ['#6c757d', '#dc3545', '#ffc107']
+                    }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
 
-            reportChartSalud = createOrUpdate(reportChartSalud, "chartReporteSalud", {
-                type: 'pie',
+            reportChartSalud = createOrUpdate(reportChartSalud, 'chartReporteSalud', {
+                type: 'doughnut',
                 data: {
-                    labels: ['Activos', 'En Reposo', 'Enf. Crónicas', 'Usa Lentes'],
-                    datasets: [{ data: [data.total_activos, data.total_reposo, data.total_cronicas, data.total_lentes], backgroundColor: ['#198754', '#dc3545', '#0dcaf0', '#0d6efd'] }]
+                    labels: ['Activos', 'En Reposo'],
+                    datasets: [{
+                        data: [data.total_activos, data.total_reposo],
+                        backgroundColor: ['#198754', '#dc3545']
+                    }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            const labelsSeg = data.gerencias_stats.map(x => x.gerencia);
-            const dataSeg = data.gerencias_stats.map(x => x.dias_sin_accidentes);
+            const labelsGerencias = (data.gerencias_stats || []).map(g => g.gerencia);
+            const valuesGerencias = (data.gerencias_stats || []).map(g => g.dias_sin_accidentes);
 
-            reportChartSeguridad = createOrUpdate(reportChartSeguridad, "chartReporteSeguridad", {
+            reportChartSeguridad = createOrUpdate(reportChartSeguridad, 'chartReporteSeguridad', {
                 type: 'bar',
                 data: {
-                    labels: labelsSeg.length ? labelsSeg : ['Sin Datos'],
-                    datasets: [{ label: 'Días Sin Accidentes', data: dataSeg.length ? dataSeg : [0], backgroundColor: '#198754' }]
+                    labels: labelsGerencias.length ? labelsGerencias : ['General'],
+                    datasets: [{
+                        data: valuesGerencias.length ? valuesGerencias : [data.dias_sin_accidentes_empresa],
+                        backgroundColor: '#198754'
+                    }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
 
-            const labelsTop = data.top_cronicas.map(x => x.nombre);
-            const valuesTop = data.top_cronicas.map(x => x.cantidad);
+            const labelsTop = (data.top_cronicas || []).map(x => x.nombre);
+            const valuesTop = (data.top_cronicas || []).map(x => x.cantidad);
 
-            reportChartTopCronicas = createOrUpdate(reportChartTopCronicas, "chartReporteTopCronicas", {
+            reportChartTopCronicas = createOrUpdate(reportChartTopCronicas, 'chartReporteTopCronicas', {
                 type: 'bar',
                 data: {
                     labels: labelsTop.length ? labelsTop : ['Sin registros'],
-                    datasets: [{ label: 'Casos Registrados', data: valuesTop.length ? valuesTop : [0], backgroundColor: '#ffc107' }]
+                    datasets: [{
+                        data: valuesTop.length ? valuesTop : [0],
+                        backgroundColor: '#0dcaf0'
+                    }]
                 },
                 options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
@@ -2031,11 +2046,12 @@
             const element = document.getElementById("informePdfContent");
             const opt = {
                 margin:       0.3,
-                filename:     `Informe_Gestion_SSST_Munchy_${new Date().toISOString().slice(0,10)}.pdf`,
+                filename:     'Informe_Gestion_SSST_Munchy.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2 },
                 jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
             };
+
             html2pdf().set(opt).from(element).save();
         }
     </script>
